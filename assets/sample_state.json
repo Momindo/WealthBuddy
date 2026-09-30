@@ -1,0 +1,255 @@
+{
+ "example": true,
+ "dismissed": [],
+ "done": [],
+ "profile": {
+  "adults": 2,
+  "kids": 1,
+  "efMonths": 6,
+  "income": null,
+  "incomeBand": null,
+  "ageBand": null,
+  "risk": "balanced",
+  "sharia": false,
+  "basic": null,
+  "years": null
+ },
+ "assets": [
+  {
+   "id": 1,
+   "name": "Current account",
+   "type": "cash",
+   "amount": 18500,
+   "cur": "AED"
+  },
+  {
+   "id": 2,
+   "name": "Savings account",
+   "type": "cash",
+   "amount": 42000,
+   "cur": "AED"
+  },
+  {
+   "id": 3,
+   "name": "Global index ETF",
+   "type": "investment",
+   "amount": 14200,
+   "cur": "USD"
+  },
+  {
+   "id": 4,
+   "name": "Gold jewellery & bars",
+   "type": "gold",
+   "amount": 120,
+   "cur": "GOLD_G"
+  },
+  {
+   "id": 5,
+   "name": "Apartment back home",
+   "type": "property",
+   "amount": 9500000,
+   "cur": "INR"
+  },
+  {
+   "id": 6,
+   "name": "Crypto wallet",
+   "type": "crypto",
+   "amount": 2100,
+   "cur": "USD"
+  }
+ ],
+ "liabilities": [
+  {
+   "id": 1,
+   "name": "Credit card",
+   "type": "card",
+   "amount": 6800,
+   "cur": "AED",
+   "rate": 38
+  },
+  {
+   "id": 2,
+   "name": "Car loan",
+   "type": "loan",
+   "amount": 54000,
+   "cur": "AED",
+   "rate": 4.5,
+   "monthly": 2100
+  }
+ ],
+ "budgets": {
+  "Rent": 9500,
+  "Groceries": 1800,
+  "Dining": 900,
+  "Transport": 2600,
+  "Bills": 1400,
+  "Education": 3000,
+  "Home help": 0,
+  "Subscriptions": 300,
+  "Shopping": 1000,
+  "Health": 400,
+  "Other": 500
+ },
+ "projects": [
+  {
+   "id": 1,
+   "name": "Family SUV",
+   "type": "car",
+   "cost": 140000,
+   "months": 12,
+   "method": "loan",
+   "dp": 20,
+   "rate": 3.5,
+   "term": 48,
+   "saved": 0
+  },
+  {
+   "id": 2,
+   "name": "House back home",
+   "type": "build",
+   "cost": 450000,
+   "months": 36,
+   "method": "cash",
+   "dp": 0,
+   "rate": 8,
+   "term": 120,
+   "saved": 0
+  }
+ ],
+ "tx": [
+  {
+   "id": 1,
+   "date": "2026-09-01",
+   "merchant": "Salary",
+   "cat": "Income",
+   "amount": 25000
+  },
+  {
+   "id": 2,
+   "date": "2026-09-01",
+   "merchant": "Landlord transfer",
+   "cat": "Rent",
+   "amount": -9500
+  },
+  {
+   "id": 3,
+   "date": "2026-09-02",
+   "merchant": "Car loan instalment",
+   "cat": "Transport",
+   "amount": -2100
+  },
+  {
+   "id": 4,
+   "date": "2026-09-03",
+   "merchant": "Carrefour",
+   "cat": "Groceries",
+   "amount": -642.5
+  },
+  {
+   "id": 5,
+   "date": "2026-09-04",
+   "merchant": "Netflix",
+   "cat": "Subscriptions",
+   "amount": -56
+  },
+  {
+   "id": 6,
+   "date": "2026-09-05",
+   "merchant": "DEWA",
+   "cat": "Bills",
+   "amount": -486
+  },
+  {
+   "id": 7,
+   "date": "2026-09-06",
+   "merchant": "Fitness First",
+   "cat": "Subscriptions",
+   "amount": -350
+  },
+  {
+   "id": 8,
+   "date": "2026-09-07",
+   "merchant": "Talabat",
+   "cat": "Dining",
+   "amount": -138
+  },
+  {
+   "id": 9,
+   "date": "2026-09-09",
+   "merchant": "ADNOC",
+   "cat": "Transport",
+   "amount": -210
+  },
+  {
+   "id": 10,
+   "date": "2026-09-10",
+   "merchant": "Spotify",
+   "cat": "Subscriptions",
+   "amount": -21.99
+  },
+  {
+   "id": 11,
+   "date": "2026-09-11",
+   "merchant": "Noon",
+   "cat": "Shopping",
+   "amount": -899
+  },
+  {
+   "id": 12,
+   "date": "2026-09-14",
+   "merchant": "Etisalat e&",
+   "cat": "Bills",
+   "amount": -375
+  },
+  {
+   "id": 13,
+   "date": "2026-09-16",
+   "merchant": "Spinneys",
+   "cat": "Groceries",
+   "amount": -518
+  },
+  {
+   "id": 14,
+   "date": "2026-09-18",
+   "merchant": "Salik top-up",
+   "cat": "Transport",
+   "amount": -100
+  },
+  {
+   "id": 15,
+   "date": "2026-09-21",
+   "merchant": "Zuma",
+   "cat": "Dining",
+   "amount": -640
+  },
+  {
+   "id": 16,
+   "date": "2026-09-24",
+   "merchant": "Aster Pharmacy",
+   "cat": "Health",
+   "amount": -96
+  },
+  {
+   "id": 17,
+   "date": "2026-09-26",
+   "merchant": "Lulu Hypermarket",
+   "cat": "Groceries",
+   "amount": -455
+  },
+  {
+   "id": 18,
+   "date": "2026-09-28",
+   "merchant": "Amazon.ae",
+   "cat": "Shopping",
+   "amount": -310
+  },
+  {
+   "id": 19,
+   "date": "2026-09-15",
+   "merchant": "School fees instalment",
+   "cat": "Education",
+   "amount": -2800
+  }
+ ],
+ "recurring": []
+}

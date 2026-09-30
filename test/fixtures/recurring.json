@@ -1,0 +1,256 @@
+{
+ "today": "2026-09-30",
+ "rules": [
+  {
+   "setupKey": "salary",
+   "merchant": "Salary",
+   "cat": "Income",
+   "amount": 25000,
+   "sign": 1,
+   "method": "transfer",
+   "freq": "monthly",
+   "start": "2026-07-25"
+  },
+  {
+   "setupKey": "home",
+   "merchant": "Rent",
+   "cat": "Rent",
+   "amount": 114000,
+   "sign": -1,
+   "method": "cheque",
+   "freq": "yearly",
+   "cheques": 4,
+   "start": "2026-08-01"
+  },
+  {
+   "setupKey": "help",
+   "merchant": "Home help",
+   "cat": "Home help",
+   "amount": 2500,
+   "sign": -1,
+   "method": "cash",
+   "freq": "monthly",
+   "start": "2026-09-05",
+   "skip": []
+  },
+  {
+   "setupKey": "school",
+   "merchant": "School fees",
+   "cat": "Education",
+   "amount": 33600,
+   "sign": -1,
+   "method": "transfer",
+   "freq": "yearly",
+   "cheques": 3,
+   "start": "2026-06-30",
+   "skip": [
+    "2026-08"
+   ]
+  }
+ ],
+ "expectedTx": [
+  {
+   "date": "2026-07-25",
+   "merchant": "Salary",
+   "cat": "Income",
+   "amount": 25000,
+   "method": "transfer"
+  },
+  {
+   "date": "2026-08-25",
+   "merchant": "Salary",
+   "cat": "Income",
+   "amount": 25000,
+   "method": "transfer"
+  },
+  {
+   "date": "2026-09-25",
+   "merchant": "Salary",
+   "cat": "Income",
+   "amount": 25000,
+   "method": "transfer"
+  },
+  {
+   "date": "2026-08-01",
+   "merchant": "Rent",
+   "cat": "Rent",
+   "amount": -9500,
+   "method": "cheque"
+  },
+  {
+   "date": "2026-09-01",
+   "merchant": "Rent",
+   "cat": "Rent",
+   "amount": -9500,
+   "method": "cheque"
+  },
+  {
+   "date": "2026-09-05",
+   "merchant": "Home help",
+   "cat": "Home help",
+   "amount": -2500,
+   "method": "cash"
+  },
+  {
+   "date": "2026-06-28",
+   "merchant": "School fees",
+   "cat": "Education",
+   "amount": -2800,
+   "method": "transfer"
+  },
+  {
+   "date": "2026-07-28",
+   "merchant": "School fees",
+   "cat": "Education",
+   "amount": -2800,
+   "method": "transfer"
+  },
+  {
+   "date": "2026-09-28",
+   "merchant": "School fees",
+   "cat": "Education",
+   "amount": -2800,
+   "method": "transfer"
+  }
+ ],
+ "snapshot": {
+  "totals": {
+   "assets": 0,
+   "debts": 0,
+   "net": 0,
+   "cash": 0,
+   "spent": 14800,
+   "received": 25000,
+   "byCat": {
+    "Rent": 9500,
+    "Groceries": 0,
+    "Dining": 0,
+    "Transport": 0,
+    "Bills": 0,
+    "Education": 2800,
+    "Home help": 2500,
+    "Subscriptions": 0,
+    "Shopping": 0,
+    "Health": 0,
+    "Other": 0
+   }
+  },
+  "income": {
+   "v": 25000
+  },
+  "household": {
+   "adults": 2,
+   "kids": 1,
+   "scale": 1.8,
+   "known": true
+  },
+  "benchmark": [
+   {
+    "cat": "Rent",
+    "pct": 38,
+    "lo": 29,
+    "hi": 40.5,
+    "s": "plain",
+    "over": 0
+   },
+   {
+    "cat": "Transport",
+    "pct": 0,
+    "lo": 9.5,
+    "hi": 17.5,
+    "s": "good",
+    "over": 0
+   },
+   {
+    "cat": "Groceries",
+    "pct": 0,
+    "lo": 13,
+    "hi": 19.5,
+    "s": "good",
+    "over": 0
+   },
+   {
+    "cat": "Dining",
+    "pct": 0,
+    "lo": 3.5,
+    "hi": 7,
+    "s": "good",
+    "over": 0
+   },
+   {
+    "cat": "Bills",
+    "pct": 0,
+    "lo": 5.5,
+    "hi": 9,
+    "s": "good",
+    "over": 0
+   },
+   {
+    "cat": "Education",
+    "pct": 11.2,
+    "lo": 5,
+    "hi": 15,
+    "s": "plain",
+    "over": 0
+   },
+   {
+    "cat": "Subscriptions",
+    "pct": 0,
+    "lo": 0,
+    "hi": 2,
+    "s": "plain",
+    "over": 0
+   },
+   {
+    "cat": "Shopping",
+    "pct": 0,
+    "lo": 3.5,
+    "hi": 10,
+    "s": "good",
+    "over": 0
+   },
+   {
+    "cat": "Health",
+    "pct": 0,
+    "lo": 1.5,
+    "hi": 6,
+    "s": "good",
+    "over": 0
+   }
+  ],
+  "debtBurden": {
+   "loans": 0,
+   "cards": 0,
+   "total": 0,
+   "pct": 0,
+   "s": "good"
+  },
+  "plan": {
+   "surplus": 10200,
+   "toDebt": 0,
+   "toEF": 6120,
+   "toInvestBase": 4080,
+   "projReserve": 0,
+   "toInvest": 4080,
+   "mix": [
+    75,
+    15,
+    10
+   ],
+   "eos": null
+  },
+  "projects": [],
+  "suggestions": [
+   {
+    "id": "ef",
+    "sev": "bad",
+    "impact": null
+   },
+   {
+    "id": "auto",
+    "sev": "good",
+    "impact": null
+   }
+  ]
+ }
+}
