@@ -14,8 +14,10 @@ class EncryptedStore {
   static const _keyName = 'wealthbuddy.data-key.v1';
   static const _fileName = 'wealthbuddy.bin';
 
+  // resetOnError is off: a transient Keystore error must never silently replace the key,
+  // because that would make the saved data unreadable.
   final FlutterSecureStorage _secure = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(resetOnError: false),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
   );
   final AesGcm _algo = AesGcm.with256bits();

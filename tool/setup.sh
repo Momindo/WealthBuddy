@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 
 flutter create --org ae.wealthbuddy --project-name wealth_buddy --platforms=android,ios .
 
-# flutter_secure_storage needs Android 6.0 (API 23) or later for Keystore-backed encryption.
+# flutter_secure_storage 11 needs Android 7.0 (API 24) or later.
 for f in android/app/build.gradle.kts android/app/build.gradle; do
   if [ -f "$f" ]; then
-    sed -i.bak -E 's/minSdk( =|Version)? *=? *flutter\.minSdkVersion/minSdk = 23/' "$f" && rm -f "$f.bak"
+    sed -i.bak -E 's/minSdk( =|Version)? *=? *flutter\.minSdkVersion/minSdk = 24/' "$f" && rm -f "$f.bak"
   fi
 done
 

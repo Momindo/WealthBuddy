@@ -15,7 +15,7 @@ flutter test
 flutter run
 ```
 
-`tool/setup.sh` runs `flutter create` for Android and iOS without touching `lib/` or `test/`. It then sets Android `minSdk` to 23 (needed for Keystore-backed storage) and turns off Android cloud backup, since the encryption key can't be restored with it.
+`tool/setup.sh` runs `flutter create` for Android and iOS without touching `lib/` or `test/`. It then sets Android `minSdk` to 24 (needed by the secure storage plugin) and turns off Android cloud backup, since the encryption key can't be restored with it.
 
 CI (`.github/workflows/ci.yml`) runs the tests and builds a debug APK and an unsigned iOS build on every push.
 
