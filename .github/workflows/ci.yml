@@ -21,28 +21,35 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - run: ./tool/setup.sh
       - run: mkdir -p reports && flutter --version > reports/flutter-version.txt
+
+      - name: Setup
+        id: setup
+        continue-on-error: true
+        run: ./tool/setup.sh > reports/setup.txt 2>&1
 
       - name: Analyze
         id: analyze
+        if: steps.setup.outcome == 'success'
         continue-on-error: true
         run: flutter analyze --no-fatal-infos > reports/analyze.txt 2>&1
 
       - name: Test
         id: test
+        if: steps.setup.outcome == 'success'
         continue-on-error: true
         run: flutter test --reporter expanded > reports/test.txt 2>&1
 
       - name: Build Android
         id: apk
+        if: steps.setup.outcome == 'success'
         continue-on-error: true
         run: flutter build apk --debug > reports/build-android.txt 2>&1
 
       - name: Publish reports to the ci-reports branch
         if: always()
         run: |
-          echo "analyze=${{ steps.analyze.outcome }} test=${{ steps.test.outcome }} apk=${{ steps.apk.outcome }} commit=${{ github.sha }}" > reports/summary.txt
+          echo "setup=${{ steps.setup.outcome }} analyze=${{ steps.analyze.outcome }} test=${{ steps.test.outcome }} apk=${{ steps.apk.outcome }} commit=${{ github.sha }}" > reports/summary.txt
           cd reports
           git init -q -b ci-reports
           git config user.name "ci"
