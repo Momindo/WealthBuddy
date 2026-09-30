@@ -2,7 +2,11 @@ name: CI
 
 on:
   push:
+    branches-ignore: [ci-reports]
   pull_request:
+
+permissions:
+  contents: write   # lets the job publish its reports to the ci-reports branch
 
 jobs:
   test-and-android:
@@ -18,13 +22,43 @@ jobs:
           distribution: temurin
           java-version: "17"
       - run: ./tool/setup.sh
-      - run: flutter analyze --no-fatal-infos
-      - run: flutter test
-      - run: flutter build apk --debug
+      - run: mkdir -p reports && flutter --version > reports/flutter-version.txt
+
+      - name: Analyze
+        id: analyze
+        continue-on-error: true
+        run: flutter analyze --no-fatal-infos > reports/analyze.txt 2>&1
+
+      - name: Test
+        id: test
+        continue-on-error: true
+        run: flutter test --reporter expanded > reports/test.txt 2>&1
+
+      - name: Build Android
+        id: apk
+        continue-on-error: true
+        run: flutter build apk --debug > reports/build-android.txt 2>&1
+
+      - name: Publish reports to the ci-reports branch
+        if: always()
+        run: |
+          echo "analyze=${{ steps.analyze.outcome }} test=${{ steps.test.outcome }} apk=${{ steps.apk.outcome }} commit=${{ github.sha }}" > reports/summary.txt
+          cd reports
+          git init -q -b ci-reports
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git add -A && git commit -qm "CI reports for ${{ github.sha }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-reports
+
       - uses: actions/upload-artifact@v4
+        if: steps.apk.outcome == 'success'
         with:
           name: wealth-buddy-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+
+      - name: Fail if any check failed
+        if: steps.analyze.outcome != 'success' || steps.test.outcome != 'success' || steps.apk.outcome != 'success'
+        run: cat reports/summary.txt && exit 1
 
   ios:
     runs-on: macos-latest
