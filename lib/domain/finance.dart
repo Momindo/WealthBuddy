@@ -525,7 +525,7 @@ class Finance {
     for (final r in benchmark().where((r) => r.over > 0)) {
       out.add(Suggestion('bench-${r.cat}', r.s == 'bad' ? 'bad' : 'warn', '${r.label} is ${r.pct.toStringAsFixed(0)}% of your income',
           'Typical is ${_n(r.lo)}–${_n(r.hi)}%. Bringing it to ${_n(r.hi)}% frees ${money(r.over)} a month.', r.over * 12,
-          ['Spent ${money(r.spent)} this month', 'Income ${money(inc!.v)} (from ${inc!.src})', 'Typical range ${_n(r.lo)}–${_n(r.hi)}% of income for ${hh.label}${hh.known ? '' : ' (assumed)'}'],
+          ['Spent ${money(r.spent)} this month', 'Income ${money(inc!.v)} (from ${inc.src})', 'Typical range ${_n(r.lo)}–${_n(r.hi)}% of income for ${hh.label}${hh.known ? '' : ' (assumed)'}'],
           'See spending', 'spend'));
     }
 

@@ -1,6 +1,5 @@
 // Smoke test: the app starts on the welcome screen when there's no saved data,
 // and "Explore with example data" opens the tabs with the example household.
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/app/state.dart';
@@ -24,7 +23,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Start tracking'), findsOneWidget);
 
-    await tester.tap(find.text('Explore with example data'));
+    final explore = find.text('Explore with example data');
+    await tester.scrollUntilVisible(explore, 200);
+    await tester.tap(explore);
     await tester.pumpAndSettle();
     expect(find.text('Overview'), findsOneWidget);
     expect(find.text('Example data'), findsOneWidget);

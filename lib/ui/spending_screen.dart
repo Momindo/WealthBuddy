@@ -168,16 +168,17 @@ class SpendingScreen extends ConsumerWidget {
   }
 
   Future<void> _importStatement(BuildContext context, WidgetRef ref) async {
-    final res = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['csv', 'txt', 'pdf', 'xlsx', 'xls'], withData: true);
-    final file = res?.files.single;
-    if (file == null || file.bytes == null || !context.mounted) return;
-    final ext = (file.extension ?? '').toLowerCase();
+    final file = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['csv', 'txt', 'pdf', 'xlsx', 'xls']);
+    if (file == null || !context.mounted) return;
+    final bytes = await file.readAsBytes();
+    if (!context.mounted) return;
+    final ext = (file.extension ?? '').toLowerCase().replaceAll('.', '');
     if (ext == 'pdf' || ext == 'xlsx' || ext == 'xls') {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('PDF and Excel statements arrive in the next update. For now, download the CSV version from your online banking.')));
       return;
     }
-    final text = utf8.decode(file.bytes!, allowMalformed: true);
+    final text = utf8.decode(bytes, allowMalformed: true);
     final raw = rowsToRaw(parseCsv(text)) ?? linesToRaw(text.split(RegExp(r'\r?\n')));
     if (raw.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No transactions found. The file needs rows with a date, a description and an amount.')));

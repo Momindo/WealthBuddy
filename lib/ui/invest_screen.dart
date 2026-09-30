@@ -176,17 +176,24 @@ class _InvestState extends ConsumerState<InvestScreen> {
       note(context, '${(f.t.cash / spend).toStringAsFixed(1)} months of your ${aed(spend)} monthly spending is in cash. Build it before investing.'),
       const SizedBox(height: 10),
       Text('How many months fits you', style: Theme.of(context).textTheme.labelLarge),
-      for (final o in options)
-        RadioListTile<int>(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          value: o.$1,
-          groupValue: m,
-          onChanged: (v) => ctl.update((s) => s.profile.efMonths = v!),
-          title: Row(children: [Text('${o.$1} months'), if (f.household.known && o.$1 == rec) const Padding(padding: EdgeInsets.only(left: 6), child: Tag('Suggested for you', tone: Tone.good))]),
-          subtitle: Text(o.$2),
-          secondary: Text(fmt(spend * o.$1)),
-        ),
+      RadioGroup<int>(
+        groupValue: m,
+        onChanged: (v) => ctl.update((s) => s.profile.efMonths = v ?? m),
+        child: Column(children: [
+          for (final o in options)
+            RadioListTile<int>(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: o.$1,
+              title: Wrap(spacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                Text('${o.$1} months'),
+                if (f.household.known && o.$1 == rec) const Tag('Suggested for you', tone: Tone.good),
+              ]),
+              subtitle: Text(o.$2),
+              secondary: Text(fmt(spend * o.$1)),
+            ),
+        ]),
+      ),
       const SizedBox(height: 6),
       Text('Where to keep it', style: Theme.of(context).textTheme.labelLarge),
       for (final l in layers) ...[
