@@ -1,4 +1,5 @@
 // Smoke test: the home screen lists project types, and picking one starts the questions.
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/app/state.dart';
