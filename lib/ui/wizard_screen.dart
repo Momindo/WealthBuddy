@@ -44,8 +44,6 @@ class _WizardState extends ConsumerState<WizardScreen> {
   int? whenMonths;
   bool? carriesCard;
   bool? hasSetAside;
-  bool? linkTogether; // plan this new project with the existing ones
-  int? linkAt; // its place in the linked plan (0 = first)
 
   final name = TextEditingController(), cost = TextEditingController(), rate = TextEditingController(), rent = TextEditingController();
   final income = TextEditingController(), spending = TextEditingController(), savings = TextEditingController();
@@ -93,28 +91,10 @@ class _WizardState extends ConsumerState<WizardScreen> {
     super.dispose();
   }
 
-  /// Projects this one could be planned with, in their current order: the linked plan if there is one,
-  /// otherwise every other project by the date it's wanted.
-  List<Project> get _others {
-    final d = ref.read(appProvider).data;
-    final linked = d.linkedProjects();
-    if (linked.isNotEmpty) return linked;
-    return [...d.projects.where((x) => x.id != p.id)]..sort((a, b) => a.target.compareTo(b.target));
-  }
-
-  /// Default place: before the first project wanted later than this one.
-  int get _defaultAt {
-    final o = _others;
-    final i = o.indexWhere((x) => x.target.compareTo(p.target) > 0);
-    return i < 0 ? o.length : i;
-  }
-
   List<Q> get flow {
     if (widget.mode == WizardMode.money) return moneyQuestions;
-    final create = widget.mode == WizardMode.create;
     return [
-      ...projectQuestions(p, isNew: create),
-      if (create && _others.isNotEmpty) Q.link,
+      ...projectQuestions(p, isNew: widget.mode == WizardMode.create),
       ...(moneyWasComplete && !editMoney ? [Q.moneyCheck] : moneyQuestions),
     ];
   }
@@ -185,8 +165,6 @@ class _WizardState extends ConsumerState<WizardScreen> {
       case Q.investments:
         final v = _num(investments);
         m.investments = (v == null || v <= 0) ? null : v;
-      case Q.link:
-        if (linkTogether == null) return _fail('Choose one.');
       case Q.moneyCheck:
         break;
     }
@@ -219,7 +197,6 @@ class _WizardState extends ConsumerState<WizardScreen> {
           d.projects[idx] = p.copy();
         } else {
           d.projects.add(p.copy());
-          if (linkTogether == true) d.link(p.id, at: linkAt ?? _defaultAt);
         }
       }
     });
@@ -305,11 +282,6 @@ class _WizardState extends ConsumerState<WizardScreen> {
         Q.situation => ('A bit about your situation', 'This sets how big your safety cushion should be.'),
         Q.investments => ('Any investments you could sell?', 'Optional. Shares, funds, gold or crypto. Only used to suggest options; the plan never relies on them.'),
         Q.moneyCheck => ('Are your money details still right?', 'They\'re shared by all your projects.'),
-        Q.link => (
-            'Plan this together with your other projects?',
-            'Your spare money can only go to one thing at a time. Together, it goes to each project in turn, '
-                'and each one\'s new monthly costs, like a loan or running costs, are counted in the next.'
-          ),
       };
 
   List<Widget> _input(Q q) {
@@ -433,33 +405,6 @@ class _WizardState extends ConsumerState<WizardScreen> {
         ];
       case Q.investments:
         return [_amount(investments, label: 'Investments (optional)', autofocus: false, quick: [('None', 0)])];
-      case Q.link:
-        final o = _others;
-        final at = linkAt ?? _defaultAt;
-        final names = o.map((x) => x.name).join(', ');
-        return [
-          _option('Plan them together', 'Recommended. Counts $names in this plan', linkTogether == true, () => setState(() {
-                linkTogether = true;
-                err = null;
-              })),
-          _option('Plan this on its own', 'As if the others didn\'t exist. Both plans may count on the same spare money.', linkTogether == false, () => setState(() {
-                linkTogether = false;
-                err = null;
-              })),
-          if (linkTogether == true) ...[
-            const SizedBox(height: 12),
-            Text('Which comes first?', style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 4),
-            note(context, 'Set by when you want each one. You can change the order later from the plan.'),
-            const SizedBox(height: 8),
-            for (var j = 0; j <= o.length; j++)
-              _option(
-                  j == 0 ? 'First, before the ${o.first.name}' : (j == o.length ? 'After the ${o.last.name}' : 'Between the ${o[j - 1].name} and the ${o[j].name}'),
-                  null,
-                  at == j,
-                  () => setState(() => linkAt = j)),
-          ],
-        ];
       case Q.moneyCheck:
         return [
           Section(children: [

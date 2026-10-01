@@ -82,7 +82,7 @@ class ResultScreen extends ConsumerWidget {
             ]),
           ),
 
-          if (data.projects.length >= 2) LinkedPlanSection(projectId: p.id),
+          if (data.projects.length >= 2) SplitSection(projectId: p.id),
 
           // Money set aside
           Section(title: 'Money set aside', children: [
@@ -166,21 +166,19 @@ class ResultScreen extends ConsumerWidget {
   }
 }
 
-/// How this project fits with the others: the order they're saved for, each one's ready date,
-/// moving it up or down, and a suggestion when another order gets everything done sooner.
-class LinkedPlanSection extends ConsumerWidget {
-  const LinkedPlanSection({super.key, required this.projectId});
-  final int projectId;
+/// "On time", "3 months early", "2 months late", or why there's no date.
+String timingLabel(Assessment a) {
+  if (a.readyIn == null) return 'not reachable yet';
+  if (a.readyIn == 0) return 'ready now';
+  final d = a.monthsLeft - a.readyIn!;
+  return 'ready ${a.readyLabel} · ${d == 0 ? 'on time' : d > 0 ? '${durationLabel(d)} early' : '${durationLabel(-d)} late'}';
+}
 
-  /// Months until every project in [order] could be ready, or null if one can't be.
-  static int? _allDone(Money m, List<Project> order, String today) {
-    var last = 0;
-    for (final (_, a) in assessChain(m, order, today: today)) {
-      if (a.readyIn == null) return null;
-      if (a.readyIn! > last) last = a.readyIn!;
-    }
-    return last;
-  }
+/// How spare money is split between this project and the others: who's saving now and how much,
+/// who waits and why, and the choice to save for a waiting project now too, or plan this one on its own.
+class SplitSection extends ConsumerWidget {
+  const SplitSection({super.key, required this.projectId});
+  final int projectId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -188,116 +186,113 @@ class LinkedPlanSection extends ConsumerWidget {
     final today = todayIso();
     final t = Theme.of(context).textTheme;
     final ctl = ref.read(appProvider.notifier);
-    final order = data.linkedProjects();
     final p = data.projects.firstWhere((x) => x.id == projectId);
+    final all = assessAll(data, today: today);
+    String at(int n) => n <= 0 ? 'now' : monthLabel(addMonths(monthKey(today), n));
 
-    if (!order.any((x) => x.id == projectId)) {
-      final others = data.projects.where((x) => x.id != projectId).map((x) => x.name).join(', ');
+    if (!data.isPlanned(projectId)) {
+      final others = joinNames([for (final x in data.projects) if (x.id != projectId) x.name]);
       return Section(title: 'Your other projects', children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(Icons.warning_amber_rounded, size: 20, color: toneColor(context, Tone.warn)),
           const SizedBox(width: 8),
-          Expanded(
-              child: Text('Planned on its own. $others count on the same spare money, so these dates may be too hopeful.', style: t.bodyMedium)),
+          Expanded(child: Text('Planned on its own. The $others count on the same spare money, so these dates may be too hopeful.', style: t.bodyMedium)),
         ]),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             icon: const Icon(Icons.link),
             label: const Text('Plan it with the others'),
-            onPressed: () => ctl.update((d) {
-              final current = d.linkedProjects().isNotEmpty
-                  ? d.linkedProjects()
-                  : ([...d.projects.where((x) => x.id != projectId)]..sort((a, b) => a.target.compareTo(b.target)));
-              final i = current.indexWhere((x) => x.target.compareTo(p.target) > 0);
-              d.link(projectId, at: i < 0 ? current.length : i);
-            }),
+            onPressed: () => ctl.update((d) => d.setSolo(projectId, false)),
           ),
         ),
       ]);
     }
 
-    final chain = assessChain(data.money, order, today: today);
-    final now = _allDone(data.money, order, today);
-    String at(int n) => n <= 0 ? 'now' : monthLabel(addMonths(monthKey(today), n));
+    final planned = data.plannedProjects();
+    final shares = {for (final x in planned) x.id: all[x.id]!.share!};
+    final turns = shares.values.map((s) => s.turn).toSet().toList()..sort();
+    final me = shares[projectId]!;
+    final efDone = shares.values.first.efDone;
+    final spare = (data.money.income ?? 0) - (data.money.spending ?? 0) - (data.money.repayments ?? 0);
+    final needAll = planAll(data.money, planned, today: today, pinned: data.pinned.toSet()).needAll;
+    final waiting = [for (final x in planned) if (shares[x.id]!.waiting) x.name];
 
-    // Would swapping two neighbours get everything done sooner?
-    (int, int, List<(Project, Assessment)>)? best; // swap index, months saved, the plan after swapping
-    for (var i = 0; i < order.length - 1; i++) {
-      final alt = [...order]..[i] = order[i + 1]..[i + 1] = order[i];
-      final done = _allDone(data.money, alt, today);
-      if (done == null) continue;
-      final saved = now == null ? 1000 : now - done;
-      if (saved >= 1 && (best == null || saved > best.$2)) best = (i, saved, assessChain(data.money, alt, today: today));
+    Widget row(Project x) {
+      final a = all[x.id]!, sh = shares[x.id]!;
+      final mine = x.id == projectId;
+      final amount = a.readyIn == 0 ? '' : (sh.waiting ? '—' : '${fmt(sh.mainAmount)}/mo');
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(children: [
+          Icon(kindIcon(x.type), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${x.name}${sh.pinned ? ' · saving now by choice' : ''}', style: mine ? t.bodyMedium?.copyWith(fontWeight: FontWeight.w700) : t.bodyMedium),
+              Text(timingLabel(a), style: t.bodySmall?.copyWith(color: a.readyIn != null && a.readyIn! > a.monthsLeft ? toneColor(context, Tone.bad) : null)),
+            ]),
+          ),
+          Text(amount, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+        ]),
+      );
     }
 
-    return Section(title: 'Planned with your other projects', children: [
-      note(context, 'Spare money goes to each in turn. Once one is bought, its monthly costs are counted in the next.'),
+    return Section(title: 'How your spare money is split', children: [
+      Row2('Spare each month', money(spare), bold: true),
+      if (efDone != null && efDone > 0) note(context, 'Your safety cushion comes first, full by ${at(efDone)}.'),
       const SizedBox(height: 8),
-      for (var i = 0; i < chain.length; i++)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(children: [
-            CircleAvatar(radius: 12, child: Text('${i + 1}', style: const TextStyle(fontSize: 12))),
-            const SizedBox(width: 10),
-            Icon(kindIcon(chain[i].$1.type), size: 18),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(chain[i].$1.name,
-                  style: chain[i].$1.id == projectId ? t.bodyMedium?.copyWith(fontWeight: FontWeight.w700) : t.bodyMedium),
-            ),
-            Text(chain[i].$2.readyLabel == 'Now' ? 'Ready now' : chain[i].$2.readyLabel, style: t.bodySmall),
-            if (chain[i].$1.id == projectId) ...[
-              IconButton(
-                  tooltip: 'Earlier',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.arrow_upward, size: 18),
-                  onPressed: i == 0 ? null : () => ctl.update((d) => d.move(projectId, -1))),
-              IconButton(
-                  tooltip: 'Later',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.arrow_downward, size: 18),
-                  onPressed: i == chain.length - 1 ? null : () => ctl.update((d) => d.move(projectId, 1))),
-            ],
-          ]),
+      for (final turn in turns) ...[
+        Text(
+          turn == 0
+              ? 'SAVING NOW'
+              : 'WAITING · ${shares.values.firstWhere((s) => s.turn == turn).blocked ? 'until the ${shares.values.firstWhere((s) => s.turn == turn).after} can be reached' : 'starts ${at(shares.values.firstWhere((s) => s.turn == turn).startsAt)}, after the ${shares.values.firstWhere((s) => s.turn == turn).after}'}',
+          style: t.labelSmall?.copyWith(letterSpacing: 0.8),
         ),
-      if (best != null) ...[
+        for (final x in planned.where((x) => shares[x.id]!.turn == turn).toList()..sort((a, b) => a.target.compareTo(b.target))) row(x),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: toneColor(context, Tone.good).withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            richBold(
-                context,
-                '**Tip: do the ${order[best.$1 + 1].name} before the ${order[best.$1].name}.** '
-                '${now == null ? 'That makes every project reachable' : 'Everything is done by ${at(now - best.$2)}, ${durationLabel(best.$2)} sooner'}: '
-                '${best.$3.map((e) => '${e.$1.name} ${e.$2.readyLabel == 'Now' ? 'now' : e.$2.readyLabel}').join(', ')}.'),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: () {
-                  final swapId = order[best!.$1 + 1].id;
-                  ctl.update((d) => d.move(swapId, -1));
-                },
-                child: const Text('Swap the order'),
-              ),
-            ),
-          ]),
-        ),
       ],
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
+      if (waiting.isNotEmpty)
+        note(
+            context,
+            'Saving for all of them at once needs ${money(roundUp(needAll, 10))} a month. You have ${money(spare)}, '
+            'so the ${joinNames(waiting)} ${waiting.length == 1 ? 'waits' : 'wait'}. '
+            '${planned.every((x) => all[x.id]!.readyIn != null && all[x.id]!.readyIn! <= all[x.id]!.monthsLeft) ? 'Everything still makes its date.' : ''}'),
+      Wrap(spacing: 4, children: [
+        if (me.waiting && !me.pinned)
+          TextButton.icon(
+            icon: const Icon(Icons.play_arrow_outlined),
+            label: const Text('Save for this now too'),
+            onPressed: () async {
+              final after = assessAll(data.copy()..setPinned(projectId, true), today: today);
+              final changes = <String>[];
+              for (final x in planned) {
+                final b = all[x.id]!.readyIn, c = after[x.id]!.readyIn;
+                if (b == c) continue;
+                changes.add('${x.name}: ${b == null ? 'not reachable' : at(b)} → ${c == null ? 'not reachable' : at(c)}');
+              }
+              final body = changes.isEmpty ? 'Nothing else moves.' : 'Ready dates change:\n${changes.join('\n')}';
+              if (await confirm(context, 'Save for ${p.name} now too?', body, 'Save now too')) {
+                ctl.update((d) => d.setPinned(projectId, true));
+              }
+            },
+          ),
+        if (me.pinned)
+          TextButton.icon(
+            icon: const Icon(Icons.auto_mode),
+            label: const Text('Let the plan decide'),
+            onPressed: () => ctl.update((d) => d.setPinned(projectId, false)),
+          ),
+        TextButton.icon(
           icon: const Icon(Icons.link_off),
           label: const Text('Plan this on its own'),
           onPressed: () async {
-            if (await confirm(context, 'Plan ${p.name} on its own?',
-                'Its plan will ignore your other projects, so both may count on the same spare money.', 'Plan on its own')) {
-              ctl.update((d) => d.unlink(projectId));
+            if (await confirm(context, 'Plan ${p.name} on its own?', 'Its plan will ignore your other projects, so they may count on the same spare money.', 'Plan on its own')) {
+              ctl.update((d) => d.setSolo(projectId, true));
             }
           },
         ),
-      ),
+      ]),
     ]);
   }
 }

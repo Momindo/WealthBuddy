@@ -11,6 +11,9 @@ import 'dart:math' as math;
 
 import 'format.dart';
 import 'models.dart';
+import 'plan.dart';
+
+export 'plan.dart';
 
 class ProjectKind {
   final String label, noun, buyTitle, costHint;
@@ -73,7 +76,7 @@ ProjectKind kindOf(String type) => kinds[type] ?? kinds['other']!;
 
 /// Which questions to ask, in order. Money questions are skipped when they're already answered
 /// (the user gets a one-screen check instead), unless they choose to update them.
-enum Q { cost, when, pay, loan, rent, setAside, link, income, payday, spending, savings, repayments, card, situation, investments, moneyCheck }
+enum Q { cost, when, pay, loan, rent, setAside, income, payday, spending, savings, repayments, card, situation, investments, moneyCheck }
 
 /// [isNew]: only a new project asks about money already set aside; later it's added with "Add money".
 List<Q> projectQuestions(Project p, {bool isNew = false}) {
@@ -93,6 +96,23 @@ double maxPrincipal(double monthly, double annualRate, int months) {
   if (months <= 0 || monthly <= 0) return 0;
   final i = annualRate / 1200;
   return i != 0 ? monthly * (1 - math.pow(1 + i, -months)) / i : monthly * months;
+}
+
+/// The numbers a plan needs about a project: what to save, and what it costs each month once bought.
+({double upfront, double emi, double running, double rentSaved, bool small, int monthsLeft}) projectBasics(Money m, Project p, {required String today}) {
+  final k = kindOf(p.type);
+  final loan = k.canFinance && p.pay == 'loan';
+  final down = loan ? math.max(p.downPct, k.minDown) : 100.0;
+  final int term = loan ? math.max(6, math.min(p.term, k.maxTerm)) : 0;
+  final principal = loan ? p.cost * (1 - down / 100) : 0.0;
+  return (
+    upfront: p.cost * (down + k.fees) / 100,
+    emi: loan ? instalment(principal, p.rate, term) : 0.0,
+    running: p.cost * k.runPctYear / 100 / 12,
+    rentSaved: p.type == 'home' ? (p.rent ?? 0) : 0.0,
+    small: !loan && p.cost <= (m.income ?? 0) * smallPurchaseMonths,
+    monthsLeft: math.max(1, monthsUntil(today, p.target)),
+  );
 }
 
 const double cardMonthlyRate = 0.03; // about 36% a year, typical for UAE credit cards
@@ -119,12 +139,11 @@ class Assessment {
   final double potStart; // already held toward the upfront amount today
   final List<double> cardPath, efPath, potPath; // balances by month on the fastest path
   final double rentSaved; // rent that stops after buying (homes)
-  final double spareLeft; // savings above the cushion this project doesn't use (passed to the next in a plan)
-  final double efEnd; // safety cushion held when it's bought
   final int? buyIn; // planned month to buy: the target when paced, otherwise as soon as it's ready
   final bool paced; // saving just enough to hit the target date (not every spare dirham)
-  final int startsAt; // month spare money starts going to it (after earlier projects in a plan)
-  final String? after; // earlier projects in a linked plan
+  final int startsAt; // month its turn starts in a plan with other projects (0 = saving now)
+  final String? after; // projects it waits for, in a plan with other projects
+  final Sched? share; // its share of the plan when planned with other projects
   final double? dbr; // loan repayments as % of take-home after buying
   final String targetLabel, readyLabel;
   final List<PlanStep> steps;
@@ -159,12 +178,11 @@ class Assessment {
     required this.efPath,
     required this.potPath,
     required this.rentSaved,
-    required this.spareLeft,
-    required this.efEnd,
     required this.buyIn,
     required this.paced,
     required this.startsAt,
     required this.after,
+    required this.share,
     required this.dbr,
     required this.targetLabel,
     required this.readyLabel,
@@ -239,26 +257,16 @@ _Sim _simulate({
   return s;
 }
 
-/// What earlier projects in a linked plan leave behind for this one.
-class Lead {
-  final int startAt; // month the earlier projects are bought and spare money moves to this one
-  final double extraSpending; // running costs they add, minus rent they stop (can be negative)
-  final double extraRepay; // loan instalments they add
-  final double efHeld; // safety cushion held at that point
-  final double spareLeft; // savings above the cushion they didn't use
-  final String before; // their names, for the plan text
-  final bool blocked; // an earlier project can't be reached, so this one can't start
-  const Lead({required this.startAt, required this.extraSpending, required this.extraRepay, required this.efHeld, required this.spareLeft, required this.before, this.blocked = false});
-  double get costChange => extraSpending + extraRepay;
-}
-
-/// [lead]: when this project is part of a linked plan, what the projects before it leave behind.
-/// [rush]: when other projects come after it, all spare money goes here so they can start sooner.
-Assessment assess(Money money0, Project p, {required String today, Lead? lead, bool rush = false}) {
+/// [sh]: when the project is planned together with others, its share of that plan (see plan.dart).
+/// Dates, monthly amounts and the cushion then come from the shared plan instead of this project alone.
+Assessment assess(Money money0, Project p, {required String today, Sched? sh}) {
   final k = kindOf(p.type);
   final income = money0.income ?? 0;
-  final spend = (money0.spending ?? 0) + (lead?.extraSpending ?? 0), rep = (money0.repayments ?? 0) + (lead?.extraRepay ?? 0);
-  final card = lead != null ? 0.0 : (money0.cardDebt ?? 0); // the first project in a plan clears the card
+  // In a plan, a waiting project counts the costs of the projects bought before it as essentials.
+  final double exSpend = sh == null ? 0 : (sh.waiting ? sh.extraSpendAtBuy : sh.extraSpendAtStart);
+  final double exRepay = sh == null ? 0 : (sh.waiting ? sh.extraRepayAtBuy : sh.extraRepayAtStart);
+  final spend = (money0.spending ?? 0) + exSpend, rep = (money0.repayments ?? 0) + exRepay;
+  final card = (sh != null && sh.startsAt > 0) ? 0.0 : (money0.cardDebt ?? 0); // cleared before a later turn starts
   final savings = money0.savings ?? 0, inv = money0.investments ?? 0;
   final essentials = spend + rep;
   final surplus = income - essentials;
@@ -284,35 +292,58 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
   final payCardNow = card > 0 ? math.min(card, math.max(0.0, cash - essentials)) : 0.0;
   cash -= payCardNow;
   final cardLeft = card - payCardNow;
-  final efHave = lead != null ? math.min(lead.efHeld, efTarget) : math.min(cash, efTarget);
-  final spare = lead != null ? lead.spareLeft + math.max(0.0, lead.efHeld - efTarget) : cash - efHave;
+  final efHave = sh != null ? math.min(sh.efAtStart, efTarget) : math.min(cash, efTarget);
+  final spare = sh != null ? 0.0 : cash - efHave;
   // Money set aside for this project counts toward it first, then savings above the cushion.
+  // In a plan, savings above the cushion were already shared out (nearest date first) and are in pot0.
   final earmarked = p.saved;
-  final pot0 = math.min(upfront, earmarked + spare);
+  final pot0 = sh != null ? math.min(upfront, sh.pot0) : math.min(upfront, earmarked + spare);
   final fromSpare = math.max(0.0, pot0 - math.min(earmarked, upfront));
 
-  final sim = _simulate(surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: pot0, upfront: upfront, horizon: 360);
-  // In a linked plan this project's months start when the earlier ones are bought; [off] shifts them onto the shared calendar.
-  final int off = (lead == null || lead.blocked) ? 0 : lead.startAt;
-  final byTarget = _simulate(
-      surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: earmarked + spare, upfront: double.infinity, horizon: math.max(0, monthsLeft - off));
-  final efOnly = _simulate(surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: false, pot: 0, upfront: 0, horizon: 360);
-  final rawReady = (lead?.blocked ?? false) ? null : (surplus > 0 || sim.readyIn == 0 ? sim.readyIn : null);
-  final readyIn = rawReady == null ? null : rawReady + off;
-  final cardDone = sim.cardDone == null ? null : sim.cardDone! + off;
-  final efDone = sim.efDone == null ? null : sim.efDone! + off;
-  final cardAtPurchase = (rawReady != null && sim.cardDone != null && sim.cardDone! <= rawReady) ? 0.0 : cardLeft;
-  final dbr = loan && income > 0 ? (rep + emi + cardAtPurchase * 0.05) / income * 100 : null;
-  final afterSurplus = surplus - emi - running + rentSaved;
-  final int cardAt = sim.cardDone ?? 0, efAt = small ? 0 : (sim.efDone ?? 0);
-  final int projStart = off + math.max(cardAt, efAt);
+  int? readyIn, cardDone, efDone, efReadyIn;
+  List<double> cardPath, efPath, potPath;
+  double potByTarget; // what it can have by its target date
+  int projStart; // month money starts going to it
+  if (sh == null) {
+    final sim = _simulate(surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: pot0, upfront: upfront, horizon: 360);
+    final byTarget = _simulate(
+        surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: earmarked + spare, upfront: double.infinity, horizon: monthsLeft);
+    final efOnly = _simulate(surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: false, pot: 0, upfront: 0, horizon: 360);
+    readyIn = surplus > 0 || sim.readyIn == 0 ? sim.readyIn : null;
+    cardDone = sim.cardDone;
+    efDone = sim.efDone;
+    efReadyIn = surplus > 0 || efOnly.efDone == 0 ? efOnly.efDone : null;
+    cardPath = sim.cardPath;
+    efPath = sim.efPath;
+    potPath = sim.potPath;
+    potByTarget = byTarget.pot;
+    final int cardAt = sim.cardDone ?? 0, efAt = small ? 0 : (sim.efDone ?? 0);
+    projStart = math.max(cardAt, efAt);
+  } else {
+    readyIn = sh.readyIn;
+    cardDone = sh.cardDone;
+    efDone = sh.efDone;
+    efReadyIn = sh.efDone;
+    cardPath = sh.cardPath;
+    efPath = sh.efPath;
+    potPath = sh.potPath;
+    potByTarget = sh.potAt(monthsLeft);
+    projStart = sh.firstMoney;
+  }
+  final cardAtPurchase = (readyIn != null && cardDone != null && cardDone <= readyIn) ? 0.0 : cardLeft;
+  // Loan repayments and spare money after buying count loans and costs of projects bought before it.
+  final repAtBuy = (money0.repayments ?? 0) + (sh?.extraRepayAtBuy ?? 0);
+  final spendAtBuy = (money0.spending ?? 0) + (sh?.extraSpendAtBuy ?? 0);
+  final dbr = loan && income > 0 ? (repAtBuy + emi + cardAtPurchase * 0.05) / income * 100 : null;
+  final afterSurplus = income - spendAtBuy - repAtBuy - emi - running + rentSaved;
+  final int off = sh?.startsAt ?? 0;
 
   // Verdict
   String verdict, headline, summary;
-  if (lead != null && lead.blocked) {
+  if (sh != null && sh.blocked) {
     verdict = 'rethink';
-    headline = 'Waiting on ${lead.before}';
-    summary = 'This is planned after the ${lead.before}, which can\'t be reached at your current savings rate. Change the order, or plan it on its own.';
+    headline = 'Waiting on the ${sh.after}';
+    summary = 'This waits for the ${sh.after}, which can\'t be reached at your current savings rate. Save for this one now too, or plan it on its own.';
   } else if (income <= 0 || surplus <= 0) {
     verdict = 'rethink';
     headline = 'Not advisable right now';
@@ -347,10 +378,12 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
   }
 
   // Pace: on track means saving just enough to hit the target; otherwise everything spare.
-  // With projects queued after it, everything spare goes here so the next one starts sooner.
-  final paced = verdict == 'onTrack' && !rush;
+  // In a plan with other projects, the plan sets the amounts.
+  final paced = verdict == 'onTrack';
   double pace = surplus;
-  if (paced && monthsLeft > projStart) {
+  if (sh != null) {
+    pace = sh.mainAmount;
+  } else if (paced && monthsLeft > projStart) {
     pace = math.min(surplus, roundUp((upfront - pot0) / (monthsLeft - projStart), 50));
   }
 
@@ -362,13 +395,13 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
         'Until something is left over each month, there is nothing to save from. Start with your biggest costs: rent, car and loans. '
             'Even ${money(roundUp(income * 0.1, 100))} a month (10% of your pay) is enough to begin.'));
   } else {
-    // 0. Projects earlier in a linked plan
-    if (lead != null && !lead.blocked) {
-      final change = lead.costChange;
+    // 0. Projects it waits for, in a plan with others
+    if (sh != null && !sh.blocked && sh.startsAt > 0) {
+      final change = exSpend + exRepay;
       steps.add(PlanStep(
-          'First: ${lead.before}',
-          'Your spare money goes to the ${lead.before} until ${at(off)}. '
-              '${change > 0.5 ? 'After that, its costs take ${money(change)} a month, leaving ${money(surplus)} spare for this.' : change < -0.5 ? 'After that, the rent you stop paying frees ${money(-change)} a month, leaving ${money(surplus)} spare for this.' : 'After that, all ${money(surplus)} spare goes to this.'}',
+          'First: the ${sh.after}',
+          'Your spare money goes to the ${sh.after} until ${at(off)}. '
+              '${change > 0.5 ? 'By then, their costs take ${money(change)} a month, leaving ${money(surplus)} spare for this.' : change < -0.5 ? 'By then, the rent you stop paying frees ${money(-change)} a month, leaving ${money(surplus)} spare for this.' : 'Then all ${money(surplus)} spare goes to this.'}',
           when: 'Until ${at(off)}'));
     }
 
@@ -400,7 +433,7 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
       steps.add(PlanStep('Your safety cushion is in place', 'You have ${money(efTarget)} set aside. $whyEf Keep it separate and don\'t use it for this.', done: true));
     } else {
       steps.add(PlanStep(
-          lead != null ? 'Top up your safety cushion' : 'Build your safety cushion first',
+          off > 0 ? 'Top up your safety cushion' : 'Build your safety cushion first',
           'Aim for ${money(efTarget)}. $whyEf You have ${money(efHave)} so far. '
               '${efDone != null ? 'Put your spare money toward it until ${at(efDone)}. ' : ''}Keep it in an instant-access savings account.',
           when: efDone != null ? 'Until ${at(efDone)}' : ''));
@@ -418,15 +451,19 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
       final within = monthsLeft <= 12 ? 'within a year' : 'within ${(monthsLeft / 12).ceil()} years';
       final b = StringBuffer();
       if (pot0 > 0) b.write('You have ${money(pot0)} toward it: ${sources.join(' and ')}. ');
-      if (paced) {
+      if (sh != null) {
+        b.write(sh.amountsText(at));
+        b.write(' and you\'ll have ${money(upfront)} by ${at(readyIn)}. ');
+        if (sh.withNames.isNotEmpty) b.write('You\'re saving for the ${joinNames(sh.withNames)} at the same time. ');
+      } else if (paced) {
         b.write('Put aside ${money(pace)} a month and you\'ll have ${money(upfront)} by $targetLabel');
         b.write(readyIn < monthsLeft ? ', or save all your spare ${money(surplus)} to get there by ${at(readyIn)}. ' : '. ');
       } else {
         b.write('Put aside your spare ${money(surplus)} a month and you\'ll have ${money(upfront)} by ${at(readyIn)}. ');
       }
       b.write(small ? 'Keep it separate from your savings.' : 'Keep it in a savings account or fixed deposit, not in shares: you need it $within.');
-      steps.add(PlanStep('Save ${money(paced ? pace : surplus)} a month for the $what', b.toString(),
-          when: 'Until ${at(paced ? monthsLeft : readyIn)}'));
+      steps.add(PlanStep('Save ${money(sh != null || paced ? pace : surplus)} a month for the $what', b.toString(),
+          when: 'Until ${at(sh != null ? readyIn : (paced ? monthsLeft : readyIn))}'));
     }
 
     // 4. Buy
@@ -471,7 +508,7 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
     }
     if (verdict == 'later') options.add('**Wait until ${at(readyIn!)}.** Saving all of your spare ${money(surplus)} a month gets you there then.');
     if (surplus > 0) {
-      var maxCost = byTarget.pot / ((down + k.fees) / 100);
+      var maxCost = potByTarget / ((down + k.fees) / 100);
       if (loan) {
         final room = income * 0.35 - rep;
         maxCost = math.min(maxCost, room > 0 ? maxPrincipal(room, p.rate, term) / (1 - down / 100) : 0);
@@ -480,7 +517,7 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
       if (maxCost >= p.cost * 0.2 && maxCost < p.cost) {
         options.add('**Aim for about ${money(roundDown(maxCost, step))} instead.** That fits your $targetLabel date.');
       }
-      final shortfall = upfront - byTarget.pot;
+      final shortfall = upfront - potByTarget;
       if (shortfall > 0 && verdict == 'later') {
         options.add('**Find ${money(roundUp(shortfall / math.max(1, monthsLeft - off), 50))} more a month.** Together with what you already save, that gets you there by $targetLabel.');
       }
@@ -582,21 +619,19 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
     monthsLeft: monthsLeft,
     term: term,
     readyIn: readyIn,
-    efReadyIn: (surplus > 0 || efOnly.efDone == 0) && efOnly.efDone != null ? efOnly.efDone! + off : null,
+    efReadyIn: efReadyIn,
     cardReadyIn: cardDone,
     projStart: projStart,
     potStart: pot0,
-    // Paths are kept on the shared calendar: before this project starts, it holds what it started with.
-    cardPath: [for (var i = 0; i < off; i++) 0.0, ...sim.cardPath],
-    efPath: [for (var i = 0; i < off; i++) efHave, ...sim.efPath],
-    potPath: [for (var i = 0; i < off; i++) pot0, ...sim.potPath],
+    cardPath: cardPath,
+    efPath: efPath,
+    potPath: potPath,
     rentSaved: rentSaved,
-    spareLeft: math.max(0.0, spare - fromSpare),
-    efEnd: sim.efPath.isEmpty ? efHave : sim.efPath.last,
-    buyIn: readyIn == null ? null : (paced ? monthsLeft : readyIn),
+    buyIn: sh != null ? sh.buyIn : (readyIn == null ? null : (paced ? monthsLeft : readyIn)),
     paced: paced,
     startsAt: off,
-    after: lead?.before,
+    after: sh?.after,
+    share: sh,
     dbr: dbr,
     targetLabel: targetLabel,
     readyLabel: readyIn == null ? 'Not within 30 years' : (readyIn == 0 ? 'Now' : at(readyIn)),
@@ -606,33 +641,16 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
   );
 }
 
-/// Plans linked projects in order. Each one gets all spare money until it's ready and bought;
-/// then its new monthly costs (loan, running costs, minus rent it stops) carry into the next.
-List<(Project, Assessment)> assessChain(Money m, List<Project> order, {required String today}) {
-  final out = <(Project, Assessment)>[];
-  Lead? lead;
-  double extraS = 0, extraR = 0;
-  final names = <String>[];
-  for (var i = 0; i < order.length; i++) {
-    final p = order[i];
-    final a = assess(m, p, today: today, lead: lead, rush: i < order.length - 1);
-    out.add((p, a));
-    names.add(p.name);
-    final before = names.length == 1 ? names.first : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
-    if (a.readyIn == null || (lead?.blocked ?? false)) {
-      lead = Lead(startAt: 0, extraSpending: extraS, extraRepay: extraR, efHeld: 0, spareLeft: 0, before: before, blocked: true);
-      continue;
-    }
-    extraS += a.running - a.rentSaved;
-    extraR += a.emi;
-    lead = Lead(startAt: a.readyIn!, extraSpending: extraS, extraRepay: extraR, efHeld: a.efEnd, spareLeft: a.spareLeft, before: before);
-  }
-  return out;
+/// 'A', 'A and B', 'A, B and C'.
+String joinNames(List<String> names) =>
+    names.length <= 1 ? names.join() : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
+
+/// Every project's plan. Projects planned together share one plan (see plan.dart); the rest are planned on their own.
+Map<int, Assessment> assessAll(AppData d, {required String today}) {
+  final together = d.plannedProjects();
+  final plan = together.isEmpty ? null : planAll(d.money, together, today: today, pinned: d.pinned.toSet());
+  return {for (final p in d.projects) p.id: assess(d.money, p, today: today, sh: plan?[p.id])};
 }
 
-/// The plan for one project as the app shows it: inside its linked plan if it's in one, otherwise on its own.
-Assessment assessIn(AppData d, Project p, {required String today}) {
-  final order = d.linkedProjects();
-  if (!order.any((x) => x.id == p.id)) return assess(d.money, p, today: today);
-  return assessChain(d.money, order, today: today).firstWhere((e) => e.$1.id == p.id).$2;
-}
+/// The plan for one project as the app shows it.
+Assessment assessIn(AppData d, Project p, {required String today}) => assessAll(d, today: today)[p.id]!;

@@ -1,4 +1,6 @@
 // Scenario tests for the decision engine. Each one is a real situation the plan must get right.
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/domain/assess.dart';
 import 'package:wealth_buddy/domain/format.dart';
@@ -186,55 +188,78 @@ void main() {
     expect(projectQuestions(project('vacation', 1, 1)), [Q.cost, Q.when]);
   });
 
-  group('linked projects', () {
-    // SUV for 120,000 from savings; a 900,000 home with 20% down, 6% fees and 6,000 rent today.
-    Project suv() => project('car', 120000, 18);
-    Project home() => project('home', 900000, 60, pay: 'loan', rate: 4.5, term: 300, rent: 6000)..id = 2;
+  group('several projects', () {
+    // AED 8,000 spare a month, 5,000 savings. A vacation in 12 months, an SUV in 24,
+    // and a 900,000 home in 60 (20% down, 6% fees, 6,000 rent today).
+    Project vacation() => project('vacation', 15000, 12)..id = 1;
+    Project suv() => project('car', 120000, 24)..id = 2;
+    Project home() => project('home', 900000, 60, pay: 'loan', rate: 4.5, term: 300, rent: 6000)..id = 3;
+    AppData three() => AppData(money: salaried(), projects: [home(), suv(), vacation()]);
+    bool onTime(Assessment a) => a.readyIn != null && a.readyIn! <= a.monthsLeft;
 
-    test('SUV first: the home starts when the SUV is bought, with its running costs counted', () {
-      final c = assessChain(salaried(), [suv(), home()], today: today);
-      final car = c[0].$2, h = c[1].$2;
-      expect(car.readyIn, 19); // cushion by month 4, then all spare money
-      expect(car.paced, isFalse); // the home is waiting, so no slow pacing
-      expect(h.startsAt, 19);
-      expect(h.surplus, 6800); // 8,000 spare minus 1,200 a month to run the car
-      expect(h.efTarget, 39600); // essentials grew, so the cushion target grew
-      expect(titles(h).first, 'First: Family SUV');
-      expect(titles(h)[1], 'Top up your safety cushion');
-      expect(h.readyIn, 54);
-      expect(h.potPath.length, greaterThan(54));
+    test('vacation and SUV save together; the home waits, and everything makes its date', () {
+      final all = assessAll(three(), today: today);
+      final v = all[1]!, c = all[2]!, h = all[3]!;
+      expect(v.share!.turn, 0);
+      expect(c.share!.turn, 0);
+      expect(h.share!.turn, 1);
+      expect(h.share!.startsAt, math.max(v.readyIn!, c.readyIn!));
+      expect(onTime(v) && onTime(c) && onTime(h), isTrue);
+      expect(c.share!.withNames, ['vacation']);
+      expect(c.pace, inInclusiveRange(5500, 6500)); // what the SUV needs to make its date
+      expect(titles(h).first, 'First: the vacation and Family SUV');
+      expect(titles(h), contains('Top up your safety cushion')); // the SUV's running costs raise the cushion target
+      expect(h.surplus, 6800); // 8,000 minus 1,200 a month to run the SUV
     });
 
-    test('home first: rent saved speeds up the SUV, and everything is done 6 months sooner', () {
-      final c = assessChain(salaried(), [home(), suv()], today: today);
-      expect(c[0].$2.readyIn, 34);
-      expect(c[1].$2.surplus, closeTo(8873, 1)); // 8,000 - 4,002 mortgage - 1,125 upkeep + 6,000 rent
-      expect(c[1].$2.readyIn, 48);
+    test('saving for everything at once wouldn\'t fit', () {
+      final d = three();
+      final plan = planAll(d.money, d.projects, today: today);
+      expect(plan.needAll, greaterThan(8000));
+      expect(plan.anyWaiting, isTrue);
+    });
+
+    test('everything fits: all save at once', () {
+      final d = AppData(money: salaried(income: 40000), projects: [home(), suv(), vacation()]);
+      final all = assessAll(d, today: today);
+      expect(all.values.every((a) => a.share!.turn == 0), isTrue);
+      expect(all.values.every(onTime), isTrue);
+    });
+
+    test('saving for the home now too makes the SUV wait', () {
+      final d = three()..setPinned(3, true);
+      final all = assessAll(d, today: today);
+      expect(all[3]!.share!.turn, 0);
+      expect(all[2]!.share!.waiting, isTrue);
+      expect(onTime(all[2]!), isFalse);
     });
 
     test('a project after one that can\'t be reached waits for it', () {
-      final big = project('car', 9000000, 12);
-      final c = assessChain(salaried(), [big, home()], today: today);
-      expect(c[1].$2.verdict, 'rethink');
-      expect(c[1].$2.headline, startsWith('Waiting on'));
+      final d = AppData(money: salaried(), projects: [project('car', 9000000, 12)..id = 1, home()]);
+      final h = assessAll(d, today: today)[3]!;
+      expect(h.verdict, 'rethink');
+      expect(h.headline, startsWith('Waiting on'));
     });
 
-    test('order is saved, moved, unlinked and cleaned up on delete', () {
-      final d = AppData(money: salaried(), projects: [suv(), home()]);
-      expect(d.linkedProjects(), isEmpty);
-      final third = project('vacation', 10000, 6)..id = 3;
-      d.projects.add(third);
-      d.link(3, at: 0); // links everything, ordered by date wanted, with the new one first
-      expect(d.queue, [3, 1, 2]);
-      d.move(3, 1);
-      expect(d.queue, [1, 3, 2]);
-      expect(AppData.fromJson(d.toJson()).queue, [1, 3, 2]);
-      expect(assessIn(d, home(), today: today).startsAt, greaterThan(0));
-      d.removeProject(3);
-      expect(d.queue, [1, 2]);
-      d.unlink(1);
-      expect(d.queue, isEmpty); // one project alone isn't a plan
-      expect(assessIn(d, home(), today: today).startsAt, 0);
+    test('planned on its own, and saved choices', () {
+      final d = three()..setSolo(3, true);
+      expect(assessAll(d, today: today)[3]!.share, isNull);
+      expect(assessAll(d, today: today)[2]!.share, isNotNull);
+      d.setPinned(2, true);
+      final back = AppData.fromJson(d.toJson());
+      expect(back.solo, [3]);
+      expect(back.pinned, [2]);
+      d.removeProject(2);
+      expect(d.pinned, isEmpty);
+      expect(d.plannedProjects(), isEmpty); // one project alone isn't a shared plan
+    });
+
+    test('payday reminder splits the money', () {
+      final d = three()..money.payday = 25;
+      final r = paydayReminders(d, today: today, count: 6);
+      final split = r.firstWhere((x) => x.title == 'Payday: put money aside' && !x.body.contains('cushion'));
+      expect(split.body, contains('for the vacation'));
+      expect(split.body, contains('for the Family SUV'));
     });
   });
 

@@ -123,63 +123,59 @@ class AppData {
   Money money;
   List<Project> projects;
   Settings settings;
-  /// Linked projects, in the order they're planned. Spare money goes to each in turn,
-  /// and each one's new monthly costs carry into the next. Projects not listed are planned on their own.
-  List<int> queue;
-  AppData({Money? money, List<Project>? projects, Settings? settings, List<int>? queue})
+  /// Projects are planned together by default (see plan.dart). These are the exceptions:
+  List<int> solo; // planned on their own, as if the others didn't exist
+  List<int> pinned; // saving from the start even if that makes others wait
+  AppData({Money? money, List<Project>? projects, Settings? settings, List<int>? solo, List<int>? pinned})
       : money = money ?? Money(),
         projects = projects ?? [],
         settings = settings ?? Settings(),
-        queue = queue ?? [];
+        solo = solo ?? [],
+        pinned = pinned ?? [];
+
+  static List<int> _ids(Object? v) => ((v as List?) ?? []).map((e) => (e as num).toInt()).toList();
 
   factory AppData.fromJson(Map<String, dynamic> j) => AppData(
         money: Money.fromJson(((j['money'] as Map?) ?? {}).cast<String, dynamic>()),
         projects: ((j['projects'] as List?) ?? []).map((e) => Project.fromJson((e as Map).cast<String, dynamic>())).toList(),
         settings: Settings.fromJson(((j['settings'] as Map?) ?? {}).cast<String, dynamic>()),
-        queue: ((j['queue'] as List?) ?? []).map((e) => (e as num).toInt()).toList(),
+        solo: _ids(j['solo']),
+        pinned: _ids(j['pinned']),
       );
 
-  Map<String, dynamic> toJson() =>
-      {'money': money.toJson(), 'projects': projects.map((p) => p.toJson()).toList(), 'settings': settings.toJson(), 'queue': queue};
+  Map<String, dynamic> toJson() => {
+        'money': money.toJson(),
+        'projects': projects.map((p) => p.toJson()).toList(),
+        'settings': settings.toJson(),
+        'solo': solo,
+        'pinned': pinned,
+      };
 
   AppData copy() => AppData.fromJson(toJson());
 
-  /// The linked projects in plan order (empty unless at least two are linked).
-  List<Project> linkedProjects() {
-    final list = [for (final id in queue) ...projects.where((p) => p.id == id)];
+  /// The projects planned together (empty unless there are at least two).
+  List<Project> plannedProjects() {
+    final list = projects.where((p) => !solo.contains(p.id)).toList();
     return list.length >= 2 ? list : [];
   }
 
-  bool isLinked(int id) => linkedProjects().any((p) => p.id == id);
+  bool isPlanned(int id) => plannedProjects().any((p) => p.id == id);
 
-  /// Puts a project into the linked plan at [at] (0 = first). An empty plan starts with every
-  /// other project, ordered by when they're wanted, so linking one links it with the rest.
-  void link(int id, {int? at}) {
-    if (queue.isEmpty) {
-      queue = [for (final p in [...projects]..sort((a, b) => a.target.compareTo(b.target))) if (p.id != id) p.id];
-    }
-    queue.remove(id);
-    queue.insert((at ?? queue.length).clamp(0, queue.length), id);
+  void setSolo(int id, bool on) {
+    solo.remove(id);
+    pinned.remove(id);
+    if (on) solo.add(id);
   }
 
-  /// Takes a project out of the linked plan; it's then planned on its own.
-  void unlink(int id) {
-    queue.remove(id);
-    if (queue.length < 2) queue.clear();
-  }
-
-  /// Moves a linked project earlier (-1) or later (+1).
-  void move(int id, int by) {
-    final i = queue.indexOf(id);
-    if (i < 0) return;
-    final j = (i + by).clamp(0, queue.length - 1);
-    queue.removeAt(i);
-    queue.insert(j, id);
+  void setPinned(int id, bool on) {
+    pinned.remove(id);
+    if (on) pinned.add(id);
   }
 
   void removeProject(int id) {
     projects.removeWhere((p) => p.id == id);
-    unlink(id);
+    solo.remove(id);
+    pinned.remove(id);
   }
 
   int nextProjectId() => projects.fold<int>(0, (m, p) => p.id > m ? p.id : m) + 1;

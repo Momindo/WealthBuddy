@@ -15,8 +15,7 @@ No account and no personal details. Everything stays on the phone, AES-256-GCM e
    - **Your credit card:** pays down the balance; anything beyond it goes to the project.
 
    If your cushion is short, the sheet shows when putting the money there reaches the same ready date and protects you sooner.
-5. **Link it with your other projects:** when you already have a project, a new one asks whether to plan them together and which comes first (default: by the date you want each). See *Linked projects* below.
-6. **Get the plan:**
+5. **Get the plan:**
    - a verdict: Ready now, On track, Later or Rethink
    - the numbers behind it
    - the steps in order, with dates
@@ -40,22 +39,32 @@ No account and no personal details. Everything stays on the phone, AES-256-GCM e
    - Loan repayments must stay under the UAE's 50% cap; under 35% counts as comfortable.
    - Monthly costs afterwards must fit your spare money. Car running costs are estimated; a home adds upkeep and subtracts the rent you stop paying.
 
-### Linked projects
+### Several projects at once (`lib/domain/plan.dart`)
 
-Spare money can only go to one thing at a time, so linked projects are saved for in turn (`AppData.queue`, `assessChain`):
+Every project is planned together with the others by default. Spare money is split in **turns**:
 
 ```
-month 0 ─────────── 19 ───────────────────── 54
- SUV:  card → cushion → save   │ buy
- Home:                         │ top up cushion → save down payment │ buy
-                               └ spare drops 8,000 → 6,800 (car running costs)
+Spare AED 8,000 a month                       Oct'26 ─ Feb'27 ─────── Sep'27 ──── Jun'28 ─────────────── Jun'31
+Safety cushion first                          ████████
+Turn 1 · saving now   Vacation  ~1,250/mo             ███████████████ ✓ on time
+                      SUV       ~6,180/mo             ██████████████████████████ ✓ early
+Turn 2 · waiting      Home      starts after both                                ███████████████████████ ✓ on time
+                                (6,800/mo once the SUV's 1,200 running costs start)
 ```
 
-- Each project gets all spare money until it's ready; only the last one is paced to its target date.
-- Once one is bought, its monthly costs carry into the next: loan instalments, running costs, minus rent it stops. Essentials grow, so the cushion target is recomputed and topped up. Repayment caps count earlier loans.
-- Money set aside for a project stays with that project.
-- The plan screen lists the order with each ready date, lets you move a project up or down, and suggests a swap when another order gets everything done sooner (for example home first, then SUV: done 6 months sooner because the rent stops).
-- A project planned on its own shows a warning that the others count on the same spare money.
+1. The credit card, then the safety cushion, come first. Small purchases still save their monthly need during the cushion.
+2. Each project's **need** is what's left to save ÷ months left to its date.
+3. A turn is the largest group, nearest date first, whose needs fit in spare money and who all make their dates. Each gets its need; leftover goes to the nearest date.
+4. Projects that don't fit **wait**; the next turn starts once everyone in this one has saved enough. Waiting is usually free: it still makes its date (the plan screen says so, or says by how much it slips).
+5. Each project is bought on its date (or when ready, if late). From then on its loan, running costs, minus any rent it stops, change spare money and the cushion target for everyone after it.
+
+Equal or proportional splits are avoided on purpose: when there isn't enough for everyone, they make everyone late at once.
+
+On the plan screen, **How your spare money is split** shows who's saving now and how much, who waits and why ("Saving for all of them at once needs AED 11,980 a month. You have 8,000"). Two choices:
+- **Save for this now too** pins a waiting project into the first turn, after previewing which dates move.
+- **Plan this on its own** takes it out (with a warning that the others count on the same money).
+
+Home cards say *Saving now · AED 6,180 a month* or *Waiting · starts Jun 2028*. Payday reminders split the money: "Put AED 1,250 for the vacation and AED 6,180 for the Family SUV today."
 
 ## App basics
 

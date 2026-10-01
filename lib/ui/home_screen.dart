@@ -19,6 +19,7 @@ class HomeScreen extends ConsumerWidget {
     final data = ref.watch(appProvider).data;
     final today = todayIso();
     final t = Theme.of(context).textTheme;
+    final all = data.money.complete ? assessAll(data, today: today) : null;
     return Scaffold(
       appBar: AppBar(
         title: const BrandTitle(),
@@ -66,8 +67,14 @@ class HomeScreen extends ConsumerWidget {
             Text('Your projects', style: t.titleMedium),
             for (final p in data.projects)
               Builder(builder: (context) {
-                final a = data.money.complete ? assessIn(data, p, today: today) : null;
+                final a = all?[p.id];
+                final sh = a?.share;
                 return ProjectCard(
+                  planNote: sh == null || a!.readyIn == 0
+                      ? null
+                      : sh.waiting
+                          ? (sh.blocked ? 'Waiting on the ${sh.after}' : 'Waiting · starts ${monthLabel(addMonths(monthKey(today), sh.startsAt))}')
+                          : 'Saving now · ${money(sh.mainAmount)} a month',
                   projectName: p.name,
                   type: p.type,
                   assessment: a,
@@ -92,9 +99,10 @@ class HomeScreen extends ConsumerWidget {
 
 /// A project on the home screen: verdict, progress toward the upfront amount, ready date, and Add money.
 class ProjectCard extends StatelessWidget {
-  const ProjectCard({super.key, required this.projectName, required this.type, required this.assessment, required this.saved, required this.cost,
+  const ProjectCard({super.key, this.planNote, required this.projectName, required this.type, required this.assessment, required this.saved, required this.cost,
       required this.wanted, required this.onOpen, required this.onAdd});
   final String projectName, type, wanted;
+  final String? planNote; // saving now / waiting, when planned with other projects
   final Assessment? assessment;
   final double saved, cost;
   final VoidCallback onOpen, onAdd;
@@ -130,6 +138,11 @@ class ProjectCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text('${money(saved)} of ${money(goal)} set aside${a != null && a.loan ? ' (down payment)' : ''}', style: t.bodySmall),
             Text(a == null ? 'Wanted by $wanted' : 'Ready ${a.readyLabel == 'Now' ? 'now' : a.readyLabel} · wanted by $wanted', style: t.bodySmall),
+            if (planNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(planNote!, style: t.bodySmall?.copyWith(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
+              ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Add money')),
