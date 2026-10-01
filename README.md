@@ -6,8 +6,8 @@ No account and no personal details. Everything stays on the phone, AES-256-GCM e
 
 ## How it works
 
-1. **Pick a project:** car, home, build a house, vacation, wedding, education, or something else.
-2. **Answer the project questions:** cost, when you want it, and for a car, home or other purchase, savings or a loan (with down payment, rate and term). Homes also ask your current rent.
+1. **Pick a project:** car, home, build a house, vacation, wedding, education, home renovation, Hajj or Umrah, start a business, new baby, buy gold, phone or laptop, or something else.
+2. **Answer the project questions:** cost, when you want it, and for a car, home, renovation or other purchase, savings or a loan (with down payment, rate and term). Rates have quick picks, including a 0% dealer offer for cars, and car loans go up to 5 years. Homes also ask your current rent.
 3. **Answer the money questions:** take-home pay, monthly spending, savings, loan repayments, credit card balance, who relies on your income and how steady it is, and optional investments. These are asked once and reused for every project.
 4. **Money set aside:** a new project asks whether you've already put money aside for it. Later, **Add money** on any project records a bonus, gift or sale, with a preview of how much sooner it makes the project before you confirm. The money can go to:
    - **The project:** held in its pot.
@@ -15,7 +15,8 @@ No account and no personal details. Everything stays on the phone, AES-256-GCM e
    - **Your credit card:** pays down the balance; anything beyond it goes to the project.
 
    If your cushion is short, the sheet shows when putting the money there reaches the same ready date and protects you sooner.
-5. **Get the plan:**
+5. **Link it with your other projects:** when you already have a project, a new one asks whether to plan them together and which comes first (default: by the date you want each). See *Linked projects* below.
+6. **Get the plan:**
    - a verdict: Ready now, On track, Later or Rethink
    - the numbers behind it
    - the steps in order, with dates
@@ -39,10 +40,27 @@ No account and no personal details. Everything stays on the phone, AES-256-GCM e
    - Loan repayments must stay under the UAE's 50% cap; under 35% counts as comfortable.
    - Monthly costs afterwards must fit your spare money. Car running costs are estimated; a home adds upkeep and subtracts the rent you stop paying.
 
+### Linked projects
+
+Spare money can only go to one thing at a time, so linked projects are saved for in turn (`AppData.queue`, `assessChain`):
+
+```
+month 0 ─────────── 19 ───────────────────── 54
+ SUV:  card → cushion → save   │ buy
+ Home:                         │ top up cushion → save down payment │ buy
+                               └ spare drops 8,000 → 6,800 (car running costs)
+```
+
+- Each project gets all spare money until it's ready; only the last one is paced to its target date.
+- Once one is bought, its monthly costs carry into the next: loan instalments, running costs, minus rent it stops. Essentials grow, so the cushion target is recomputed and topped up. Repayment caps count earlier loans.
+- Money set aside for a project stays with that project.
+- The plan screen lists the order with each ready date, lets you move a project up or down, and suggests a swap when another order gets everything done sooner (for example home first, then SUV: done 6 months sooner because the rent stops).
+- A project planned on its own shows a warning that the others count on the same spare money.
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.
-- **First launch:** a one-second splash, then a one-time privacy pop-up: everything stays on this phone, encrypted; no cloud and no account; no ads and no tracking; no name, email or phone number. It's available again from Settings → Privacy.
+- **First launch:** a three-second splash, then a one-time privacy pop-up: everything stays on this phone, encrypted; no cloud and no account; no ads and no tracking; no name, email or phone number. It's available again from Settings → Privacy.
 - **Payday reminders:** the money questions include the day salary arrives. At 3 pm on payday a local notification says what to do with this month's spare money, written from the plan by `lib/domain/reminders.dart`:
   - pay down the card
   - fill the safety cushion
@@ -86,7 +104,7 @@ test/
 
 | Assumption | Value used |
 |---|---|
-| Lending | 50% repayment cap; 20% minimum down for cars and expat mortgages; car loans up to 48 months; mortgage fees about 6% |
+| Lending | 50% repayment cap; 20% minimum down for cars and expat mortgages; car loans usually up to 48 months, some banks 60; mortgage fees about 6% |
 | Car running costs | 12% of the price a year |
 | Home upkeep | 1.5% of the price a year |
 | Card interest | 36% a year |

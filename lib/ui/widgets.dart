@@ -42,6 +42,12 @@ IconData kindIcon(String type) => switch (type) {
       'vacation' => Icons.flight_takeoff,
       'wedding' => Icons.favorite_border,
       'education' => Icons.school_outlined,
+      'renovation' => Icons.handyman_outlined,
+      'hajj' => Icons.mosque,
+      'business' => Icons.storefront_outlined,
+      'baby' => Icons.child_friendly_outlined,
+      'gold' => Icons.diamond_outlined,
+      'gadget' => Icons.phone_iphone,
       _ => Icons.flag_outlined,
     };
 

@@ -186,6 +186,80 @@ void main() {
     expect(projectQuestions(project('vacation', 1, 1)), [Q.cost, Q.when]);
   });
 
+  group('linked projects', () {
+    // SUV for 120,000 from savings; a 900,000 home with 20% down, 6% fees and 6,000 rent today.
+    Project suv() => project('car', 120000, 18);
+    Project home() => project('home', 900000, 60, pay: 'loan', rate: 4.5, term: 300, rent: 6000)..id = 2;
+
+    test('SUV first: the home starts when the SUV is bought, with its running costs counted', () {
+      final c = assessChain(salaried(), [suv(), home()], today: today);
+      final (_, car) = c[0], (_, h) = c[1];
+      expect(car.readyIn, 19); // cushion by month 4, then all spare money
+      expect(car.paced, isFalse); // the home is waiting, so no slow pacing
+      expect(h.startsAt, 19);
+      expect(h.surplus, 6800); // 8,000 spare minus 1,200 a month to run the car
+      expect(h.efTarget, 39600); // essentials grew, so the cushion target grew
+      expect(titles(h).first, 'First: Family SUV');
+      expect(titles(h)[1], 'Top up your safety cushion');
+      expect(h.readyIn, 54);
+      expect(h.potPath.length, greaterThan(54));
+    });
+
+    test('home first: rent saved speeds up the SUV, and everything is done 6 months sooner', () {
+      final c = assessChain(salaried(), [home(), suv()], today: today);
+      expect(c[0].$2.readyIn, 34);
+      expect(c[1].$2.surplus, closeTo(8873, 1)); // 8,000 - 4,002 mortgage - 1,125 upkeep + 6,000 rent
+      expect(c[1].$2.readyIn, 48);
+    });
+
+    test('a project after one that can\'t be reached waits for it', () {
+      final big = project('car', 9000000, 12);
+      final c = assessChain(salaried(), [big, home()], today: today);
+      expect(c[1].$2.verdict, 'rethink');
+      expect(c[1].$2.headline, startsWith('Waiting on'));
+    });
+
+    test('order is saved, moved, unlinked and cleaned up on delete', () {
+      final d = AppData(money: salaried(), projects: [suv(), home()]);
+      expect(d.linkedProjects(), isEmpty);
+      final third = project('vacation', 10000, 6)..id = 3;
+      d.projects.add(third);
+      d.link(3, at: 0); // links everything, ordered by date wanted, with the new one first
+      expect(d.queue, [3, 1, 2]);
+      d.move(3, 1);
+      expect(d.queue, [1, 3, 2]);
+      expect(AppData.fromJson(d.toJson()).queue, [1, 3, 2]);
+      expect(assessIn(d, home(), today: today).startsAt, greaterThan(0));
+      d.removeProject(3);
+      expect(d.queue, [1, 2]);
+      d.unlink(1);
+      expect(d.queue, isEmpty); // one project alone isn't a plan
+      expect(assessIn(d, home(), today: today).startsAt, 0);
+    });
+  });
+
+  test('car loans: 0% and 5 years', () {
+    expect(instalment(60000, 0, 60), 1000);
+    final a = assess(salaried(savings: 100000), project('car', 75000, 12, pay: 'loan', rate: 0, term: 60), today: today);
+    expect(a.term, 60);
+    expect(a.emi, 1000); // 60,000 borrowed over 60 months at 0%
+    expect(a.watchouts.any((w) => w.contains('0% deals')), isTrue);
+    expect(kinds['car']!.terms, contains(60));
+    expect(kinds['car']!.rateChips, contains(0));
+  });
+
+  test('new project types', () {
+    for (final t in ['renovation', 'hajj', 'business', 'baby', 'gold', 'gadget']) {
+      expect(kinds.containsKey(t), isTrue, reason: t);
+      final a = assess(salaried(), project(t, 30000, 24), today: today);
+      expect(a.verdict, isNot('rethink'), reason: t);
+      expect(a.watchouts, isNotEmpty, reason: t);
+    }
+    expect(kinds.keys.last, 'other');
+    expect(projectQuestions(project('renovation', 1, 1)), [Q.cost, Q.when, Q.pay]);
+    expect(kinds['business']!.costTitle, isNotEmpty);
+  });
+
   test('formatting and months', () {
     expect(money(25000), 'AED 25,000');
     expect(fmt(1234.5, 2), '1,234.50');

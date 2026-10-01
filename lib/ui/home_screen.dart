@@ -66,7 +66,7 @@ class HomeScreen extends ConsumerWidget {
             Text('Your projects', style: t.titleMedium),
             for (final p in data.projects)
               Builder(builder: (context) {
-                final a = data.money.complete ? assess(data.money, p, today: today) : null;
+                final a = data.money.complete ? assessIn(data, p, today: today) : null;
                 return ProjectCard(
                   projectName: p.name,
                   type: p.type,

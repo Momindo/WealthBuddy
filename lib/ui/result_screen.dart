@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
+import '../domain/models.dart';
 import 'add_money_sheet.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
@@ -31,7 +32,7 @@ class ResultScreen extends ConsumerWidget {
       );
     }
 
-    final a = assess(data.money, p, today: todayIso());
+    final a = assessIn(data, p, today: todayIso());
     final k = kindOf(p.type);
     final tone = verdictTone(a.verdict);
     final c = toneColor(context, tone);
@@ -50,7 +51,7 @@ class ResultScreen extends ConsumerWidget {
             icon: const Icon(Icons.delete_outline),
             onPressed: () async {
               if (await confirm(context, 'Delete ${p.name}?', 'This removes the project from this phone.', 'Delete')) {
-                ref.read(appProvider.notifier).update((d) => d.projects.removeWhere((x) => x.id == p.id));
+                ref.read(appProvider.notifier).update((d) => d.removeProject(p.id));
                 if (context.mounted) Navigator.pop(context);
               }
             },
@@ -80,6 +81,8 @@ class ResultScreen extends ConsumerWidget {
               Text(a.summary, style: t.bodyMedium),
             ]),
           ),
+
+          if (data.projects.length >= 2) LinkedPlanSection(projectId: p.id),
 
           // Money set aside
           Section(title: 'Money set aside', children: [
@@ -160,6 +163,142 @@ class ResultScreen extends ConsumerWidget {
         ]),
       ),
     );
+  }
+}
+
+/// How this project fits with the others: the order they're saved for, each one's ready date,
+/// moving it up or down, and a suggestion when another order gets everything done sooner.
+class LinkedPlanSection extends ConsumerWidget {
+  const LinkedPlanSection({super.key, required this.projectId});
+  final int projectId;
+
+  /// Months until every project in [order] could be ready, or null if one can't be.
+  static int? _allDone(Money m, List<Project> order, String today) {
+    var last = 0;
+    for (final (_, a) in assessChain(m, order, today: today)) {
+      if (a.readyIn == null) return null;
+      if (a.readyIn! > last) last = a.readyIn!;
+    }
+    return last;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(appProvider).data;
+    final today = todayIso();
+    final t = Theme.of(context).textTheme;
+    final ctl = ref.read(appProvider.notifier);
+    final order = data.linkedProjects();
+    final p = data.projects.firstWhere((x) => x.id == projectId);
+
+    if (!order.any((x) => x.id == projectId)) {
+      final others = data.projects.where((x) => x.id != projectId).map((x) => x.name).join(', ');
+      return Section(title: 'Your other projects', children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.warning_amber_rounded, size: 20, color: toneColor(context, Tone.warn)),
+          const SizedBox(width: 8),
+          Expanded(
+              child: Text('Planned on its own. $others count on the same spare money, so these dates may be too hopeful.', style: t.bodyMedium)),
+        ]),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            icon: const Icon(Icons.link),
+            label: const Text('Plan it with the others'),
+            onPressed: () => ctl.update((d) {
+              final current = d.linkedProjects().isNotEmpty
+                  ? d.linkedProjects()
+                  : ([...d.projects.where((x) => x.id != projectId)]..sort((a, b) => a.target.compareTo(b.target)));
+              final i = current.indexWhere((x) => x.target.compareTo(p.target) > 0);
+              d.link(projectId, at: i < 0 ? current.length : i);
+            }),
+          ),
+        ),
+      ]);
+    }
+
+    final chain = assessChain(data.money, order, today: today);
+    final now = _allDone(data.money, order, today);
+    String at(int n) => n <= 0 ? 'now' : monthLabel(addMonths(monthKey(today), n));
+
+    // Would swapping two neighbours get everything done sooner?
+    (int, int, List<(Project, Assessment)>)? best; // swap index, months saved, the plan after swapping
+    for (var i = 0; i < order.length - 1; i++) {
+      final alt = [...order]..[i] = order[i + 1]..[i + 1] = order[i];
+      final done = _allDone(data.money, alt, today);
+      if (done == null) continue;
+      final saved = now == null ? 1000 : now - done;
+      if (saved >= 1 && (best == null || saved > best.$2)) best = (i, saved, assessChain(data.money, alt, today: today));
+    }
+
+    return Section(title: 'Planned with your other projects', children: [
+      note(context, 'Spare money goes to each in turn. Once one is bought, its monthly costs are counted in the next.'),
+      const SizedBox(height: 8),
+      for (var i = 0; i < chain.length; i++)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(children: [
+            CircleAvatar(radius: 12, child: Text('${i + 1}', style: const TextStyle(fontSize: 12))),
+            const SizedBox(width: 10),
+            Icon(kindIcon(chain[i].$1.type), size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(chain[i].$1.name,
+                  style: chain[i].$1.id == projectId ? t.bodyMedium?.copyWith(fontWeight: FontWeight.w700) : t.bodyMedium),
+            ),
+            Text(chain[i].$2.readyLabel == 'Now' ? 'Ready now' : chain[i].$2.readyLabel, style: t.bodySmall),
+            if (chain[i].$1.id == projectId) ...[
+              IconButton(
+                  tooltip: 'Earlier',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.arrow_upward, size: 18),
+                  onPressed: i == 0 ? null : () => ctl.update((d) => d.move(projectId, -1))),
+              IconButton(
+                  tooltip: 'Later',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.arrow_downward, size: 18),
+                  onPressed: i == chain.length - 1 ? null : () => ctl.update((d) => d.move(projectId, 1))),
+            ],
+          ]),
+        ),
+      if (best != null) ...[
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: toneColor(context, Tone.good).withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            richBold(
+                context,
+                '**Tip: do the ${order[best.$1 + 1].name} before the ${order[best.$1].name}.** '
+                '${now == null ? 'That makes every project reachable' : 'Everything is done by ${at(now - best.$2)}, ${durationLabel(best.$2)} sooner'}: '
+                '${best.$3.map((e) => '${e.$1.name} ${e.$2.readyLabel == 'Now' ? 'now' : e.$2.readyLabel}').join(', ')}.'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () {
+                  final swapId = order[best!.$1 + 1].id;
+                  ctl.update((d) => d.move(swapId, -1));
+                },
+                child: const Text('Swap the order'),
+              ),
+            ),
+          ]),
+        ),
+      ],
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          icon: const Icon(Icons.link_off),
+          label: const Text('Plan this on its own'),
+          onPressed: () async {
+            if (await confirm(context, 'Plan ${p.name} on its own?',
+                'Its plan will ignore your other projects, so both may count on the same spare money.', 'Plan on its own')) {
+              ctl.update((d) => d.unlink(projectId));
+            }
+          },
+        ),
+      ),
+    ]);
   }
 }
 

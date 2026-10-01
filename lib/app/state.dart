@@ -29,7 +29,7 @@ class AppController extends StateNotifier<AppModel> {
       d = null; // unreadable file (e.g. key lost after a restore): start fresh rather than crash
     }
     // Keep the splash up for about a second so it doesn't flash.
-    final wait = const Duration(milliseconds: 1100) - DateTime.now().difference(started);
+    final wait = const Duration(milliseconds: 3000) - DateTime.now().difference(started);
     if (wait > Duration.zero && _reminders != null) await Future<void>.delayed(wait);
     state = AppModel(true, d ?? AppData());
     _reminders?.reschedule(state.data);

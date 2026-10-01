@@ -23,12 +23,13 @@ List<PaydayReminder> paydayReminders(AppData d, {required String today, int coun
   final m = d.money, day = m.payday;
   if (day == null || day <= 0 || !m.complete || d.projects.isEmpty) return [];
   final evals = [
-    for (final p in d.projects) (p, assess(m, p, today: today)),
+    for (final p in d.projects) (p, assessIn(d, p, today: today)),
   ].where((e) => e.$2.readyIn != null && e.$2.surplus > 0 && e.$2.verdict != 'rethink').toList();
   if (evals.isEmpty) return [];
 
-  // When each project is due on its plan: on-track projects follow the target date, others the fastest path.
-  int due(Assessment a) => math.max(1, a.verdict == 'onTrack' ? a.monthsLeft : a.readyIn!);
+  // When each project is due on its plan: paced projects follow the target date, others the fastest path.
+  // Linked projects come one after another, so the earliest due is the one being saved for.
+  int due(Assessment a) => math.max(1, a.buyIn!);
 
   final out = <PaydayReminder>[];
   final now = monthKey(today);
@@ -91,7 +92,7 @@ PaydayReminder _message(Project p, Assessment a, int n, String date) {
   }
 
   // 3. Saving for the project
-  final onTrack = a.verdict == 'onTrack';
+  final onTrack = a.paced;
   final amount = onTrack ? a.pace : math.min(a.surplus, math.max(0.0, a.upfront - _at(a.potPath, n - 1)));
   final held = onTrack ? a.potStart + a.pace * math.max(0, n - a.projStart) : _at(a.potPath, n);
   final pct = a.upfront > 0 ? math.min(99, (held / a.upfront * 100).floor()) : 99;

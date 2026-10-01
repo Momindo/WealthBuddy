@@ -47,10 +47,10 @@ class _AddMoneySheetState extends ConsumerState<AddMoneySheet> {
     final a = _amount;
     String? head, body, tip;
     if (ready && a != null && a > 0) {
-      final before = assess(data.money, p, today: today);
+      final before = assessIn(data, p, today: today);
       Assessment afterFor(String dest) {
         final copy = data.copy()..addMoney(p.id, a, source, dest, today);
-        return assess(copy.money, copy.projects.firstWhere((x) => x.id == p.id), today: today);
+        return assessIn(copy, copy.projects.firstWhere((x) => x.id == p.id), today: today);
       }
 
       final after = afterFor(to);
