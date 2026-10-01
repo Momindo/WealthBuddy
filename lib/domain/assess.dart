@@ -293,7 +293,7 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
 
   final sim = _simulate(surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: pot0, upfront: upfront, horizon: 360);
   // In a linked plan this project's months start when the earlier ones are bought; [off] shifts them onto the shared calendar.
-  final off = (lead == null || lead.blocked) ? 0 : lead.startAt;
+  final int off = (lead == null || lead.blocked) ? 0 : lead.startAt;
   final byTarget = _simulate(
       surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: earmarked + spare, upfront: double.infinity, horizon: math.max(0, monthsLeft - off));
   final efOnly = _simulate(surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: false, pot: 0, upfront: 0, horizon: 360);
@@ -304,7 +304,8 @@ Assessment assess(Money money0, Project p, {required String today, Lead? lead, b
   final cardAtPurchase = (rawReady != null && sim.cardDone != null && sim.cardDone! <= rawReady) ? 0.0 : cardLeft;
   final dbr = loan && income > 0 ? (rep + emi + cardAtPurchase * 0.05) / income * 100 : null;
   final afterSurplus = surplus - emi - running + rentSaved;
-  final projStart = off + math.max(sim.cardDone ?? 0, small ? 0 : (sim.efDone ?? 0));
+  final int cardAt = sim.cardDone ?? 0, efAt = small ? 0 : (sim.efDone ?? 0);
+  final int projStart = off + math.max(cardAt, efAt);
 
   // Verdict
   String verdict, headline, summary;

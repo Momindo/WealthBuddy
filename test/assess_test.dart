@@ -193,7 +193,7 @@ void main() {
 
     test('SUV first: the home starts when the SUV is bought, with its running costs counted', () {
       final c = assessChain(salaried(), [suv(), home()], today: today);
-      final (_, car) = c[0], (_, h) = c[1];
+      final car = c[0].$2, h = c[1].$2;
       expect(car.readyIn, 19); // cushion by month 4, then all spare money
       expect(car.paced, isFalse); // the home is waiting, so no slow pacing
       expect(h.startsAt, 19);
