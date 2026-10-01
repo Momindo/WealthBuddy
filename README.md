@@ -9,7 +9,13 @@ No account and no personal details. Everything stays on the phone, AES-256-GCM e
 1. **Pick a project:** car, home, build a house, vacation, wedding, education, or something else.
 2. **Answer the project questions:** cost, when you want it, and for a car, home or other purchase, savings or a loan (with down payment, rate and term). Homes also ask your current rent.
 3. **Answer the money questions:** take-home pay, monthly spending, savings, loan repayments, credit card balance, who relies on your income and how steady it is, and optional investments. These are asked once and reused for every project.
-4. **Get the plan:**
+4. **Money set aside:** a new project asks whether you've already put money aside for it. Later, **Add money** on any project records a bonus, gift or sale, with a preview of how much sooner it makes the project before you confirm. The money can go to:
+   - **The project:** held in its pot.
+   - **Your safety cushion:** added to savings.
+   - **Your credit card:** pays down the balance; anything beyond it goes to the project.
+
+   If your cushion is short, the sheet shows when putting the money there reaches the same ready date and protects you sooner.
+5. **Get the plan:**
    - a verdict: Ready now, On track, Later or Rethink
    - the numbers behind it
    - the steps in order, with dates
@@ -28,7 +34,7 @@ No account and no personal details. Everything stays on the phone, AES-256-GCM e
    | Income varies | 3 months more on top |
 
    **Small purchases skip this step.** A purchase counts as small when it costs up to one month of take-home pay and is paid from savings. Your savings are still left alone, and the cushion comes after.
-3. **Save the upfront amount.** That's the full price, or the down payment plus fees. Savings above the cushion count first.
+3. **Save the upfront amount.** That's the full price, or the down payment plus fees. Money set aside for the project counts first, then savings above the cushion. Set-aside money never skips steps 1 and 2: the plan still says to wait until the card is clear and the cushion is full.
 4. **Buy, then check it still fits:**
    - Loan repayments must stay under the UAE's 50% cap; under 35% counts as comfortable.
    - Monthly costs afterwards must fit your spare money. Car running costs are estimated; a home adds upkeep and subtracts the rent you stop paying.

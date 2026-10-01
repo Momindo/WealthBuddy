@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
+import 'add_money_sheet.dart';
 import 'result_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
@@ -77,14 +78,15 @@ class HomeScreen extends ConsumerWidget {
             for (final p in data.projects)
               Builder(builder: (context) {
                 final a = data.money.complete ? assess(data.money, p, today: today) : null;
-                return Card(
-                  child: ListTile(
-                    leading: Icon(kindIcon(p.type)),
-                    title: Text(p.name),
-                    subtitle: Text('${money(p.cost)} · by ${monthLabel(p.target)}'),
-                    trailing: a == null ? null : Tag(verdictLabel(a.verdict), tone: verdictTone(a.verdict)),
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ResultScreen(projectId: p.id))),
-                  ),
+                return ProjectCard(
+                  projectName: p.name,
+                  type: p.type,
+                  assessment: a,
+                  saved: p.saved,
+                  cost: p.cost,
+                  wanted: monthLabel(p.target),
+                  onOpen: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ResultScreen(projectId: p.id))),
+                  onAdd: () => showAddMoney(context, p.id),
                 );
               }),
           ],
@@ -94,6 +96,57 @@ class HomeScreen extends ConsumerWidget {
             Expanded(child: note(context, 'No account and no personal details. Everything stays on this phone, encrypted.')),
           ]),
         ]),
+      ),
+    );
+  }
+}
+
+/// A project on the home screen: verdict, progress toward the upfront amount, ready date, and Add money.
+class ProjectCard extends StatelessWidget {
+  const ProjectCard({super.key, required this.projectName, required this.type, required this.assessment, required this.saved, required this.cost,
+      required this.wanted, required this.onOpen, required this.onAdd});
+  final String projectName, type, wanted;
+  final Assessment? assessment;
+  final double saved, cost;
+  final VoidCallback onOpen, onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = assessment;
+    final goal = a?.upfront ?? cost;
+    final t = Theme.of(context).textTheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              Icon(kindIcon(type)),
+              const SizedBox(width: 10),
+              Expanded(child: Text(projectName, style: t.titleSmall)),
+              if (a != null) Tag(verdictLabel(a.verdict), tone: verdictTone(a.verdict)),
+            ]),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: goal > 0 ? (saved / goal).clamp(0, 1).toDouble() : 0,
+                minHeight: 8,
+                color: toneColor(context, Tone.good),
+                backgroundColor: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text('${money(saved)} of ${money(goal)} set aside${a != null && a.loan ? ' (down payment)' : ''}', style: t.bodySmall),
+            Text(a == null ? 'Wanted by $wanted' : 'Ready ${a.readyLabel == 'Now' ? 'now' : a.readyLabel} · wanted by $wanted', style: t.bodySmall),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Add money')),
+            ),
+          ]),
+        ),
       ),
     );
   }

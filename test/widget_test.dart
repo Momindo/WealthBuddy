@@ -32,4 +32,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('When do you want it?'), findsOneWidget);
   });
+
+  testWidgets('add a bonus from the projects list', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2800);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    final store = MemoryStore()
+      ..saved = AppData(
+        money: Money(income: 20000, spending: 12000, savings: 5000, repayments: 0, cardDebt: 0, family: false, variable: false),
+        projects: [
+          Project(id: 1, type: 'car', name: 'Family SUV', cost: 120000, target: '2099-01', contributions: [
+            Contribution(amount: 10000, source: 'Set aside at start', date: '2026-10-01'),
+          ]),
+        ],
+      );
+    await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(store)], child: const WealthBuddyApp()));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Add money'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('AED 10,000 of AED 120,000'), findsOneWidget);
+
+    await tester.tap(find.text('Add money'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '25000');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Add AED 25,000'));
+    await tester.tap(find.text('Add AED 25,000'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('AED 35,000 of AED 120,000'), findsOneWidget);
+    expect(store.saved!.projects.first.contributions.last.source, 'Bonus');
+  });
 }

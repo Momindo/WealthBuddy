@@ -55,11 +55,12 @@ ProjectKind kindOf(String type) => kinds[type] ?? kinds['other']!;
 
 /// Which questions to ask, in order. Money questions are skipped when they're already answered
 /// (the user gets a one-screen check instead), unless they choose to update them.
-enum Q { cost, when, pay, loan, rent, income, spending, savings, repayments, card, situation, investments, moneyCheck }
+enum Q { cost, when, pay, loan, rent, setAside, income, spending, savings, repayments, card, situation, investments, moneyCheck }
 
-List<Q> projectQuestions(Project p) {
+/// [isNew]: only a new project asks about money already set aside; later it's added with "Add money".
+List<Q> projectQuestions(Project p, {bool isNew = false}) {
   final k = kindOf(p.type);
-  return [Q.cost, Q.when, if (k.canFinance) Q.pay, if (k.canFinance && p.pay == 'loan') Q.loan, if (p.type == 'home') Q.rent];
+  return [Q.cost, Q.when, if (k.canFinance) Q.pay, if (k.canFinance && p.pay == 'loan') Q.loan, if (p.type == 'home') Q.rent, if (isNew) Q.setAside];
 }
 
 const List<Q> moneyQuestions = [Q.income, Q.spending, Q.savings, Q.repayments, Q.card, Q.situation, Q.investments];
@@ -90,8 +91,11 @@ class Assessment {
   final String headline, summary;
   final bool small, loan;
   final double surplus, upfront, efTarget, efHave, emi, running, afterSurplus, principal, pace;
+  final double earmarked; // money set aside for this project
+  final double cardDebt;
   final int efMonths, monthsLeft, term;
   final int? readyIn; // months from now until it can be bought, null if not within 30 years
+  final int? efReadyIn; // months until the safety cushion is full, null if never
   final double? dbr; // loan repayments as % of take-home after buying
   final String targetLabel, readyLabel;
   final List<PlanStep> steps;
@@ -112,10 +116,13 @@ class Assessment {
     required this.afterSurplus,
     required this.principal,
     required this.pace,
+    required this.earmarked,
+    required this.cardDebt,
     required this.efMonths,
     required this.monthsLeft,
     required this.term,
     required this.readyIn,
+    required this.efReadyIn,
     required this.dbr,
     required this.targetLabel,
     required this.readyLabel,
@@ -210,11 +217,15 @@ Assessment assess(Money money0, Project p, {required String today}) {
   final cardLeft = card - payCardNow;
   final efHave = math.min(cash, efTarget);
   final spare = cash - efHave;
-  final pot0 = math.min(spare, upfront);
+  // Money set aside for this project counts toward it first, then savings above the cushion.
+  final earmarked = p.saved;
+  final pot0 = math.min(upfront, earmarked + spare);
+  final fromSpare = math.max(0.0, pot0 - math.min(earmarked, upfront));
 
   final sim = _simulate(surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: pot0, upfront: upfront, horizon: 360);
   final byTarget = _simulate(
-      surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: spare, upfront: double.infinity, horizon: monthsLeft);
+      surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: small, pot: earmarked + spare, upfront: double.infinity, horizon: monthsLeft);
+  final efOnly = _simulate(surplus: surplus, card: cardLeft, ef: efHave, efTarget: efTarget, skipEf: false, pot: 0, upfront: 0, horizon: 360);
   final readyIn = surplus > 0 || sim.readyIn == 0 ? sim.readyIn : null;
   final cardAtPurchase = (readyIn != null && sim.cardDone != null && sim.cardDone! <= readyIn) ? 0.0 : cardLeft;
   final dbr = loan && income > 0 ? (rep + emi + cardAtPurchase * 0.05) / income * 100 : null;
@@ -244,7 +255,7 @@ Assessment assess(Money money0, Project p, {required String today}) {
     headline = 'You can afford this now';
     summary = loan
         ? 'You have the ${money(upfront)} ${k.fees > 0 ? 'down payment and fees' : 'down payment'} without touching your safety cushion, and the ${k.loanName} fits.'
-        : 'You have ${money(upfront)} available without touching your safety cushion.';
+        : 'You have ${money(upfront)} ${earmarked >= upfront ? 'set aside for it' : (earmarked > 0 ? 'between what you set aside and your savings' : 'available')}, without touching your safety cushion.';
   } else if (readyIn <= monthsLeft) {
     verdict = 'onTrack';
     headline = 'Yes, by $targetLabel';
@@ -306,13 +317,16 @@ Assessment assess(Money money0, Project p, {required String today}) {
 
     // 3. Save the upfront amount
     final what = loan ? (k.fees > 0 ? 'down payment and fees' : 'down payment') : k.noun;
+    final sources = [
+      if (earmarked > 0) '${money(math.min(earmarked, upfront))} you\'ve set aside for it',
+      if (fromSpare > 0) '${money(fromSpare)} of savings above your safety cushion',
+    ];
     if (pot0 >= upfront - 0.5) {
-      steps.add(PlanStep(loan ? 'You already have the $what' : 'You already have the money',
-          '${money(upfront)} can come from savings above your safety cushion.', done: true));
+      steps.add(PlanStep(loan ? 'You already have the $what' : 'You already have the money', '${money(upfront)}: ${sources.join(' and ')}.', done: true));
     } else if (readyIn != null) {
       final within = monthsLeft <= 12 ? 'within a year' : 'within ${(monthsLeft / 12).ceil()} years';
       final b = StringBuffer();
-      if (pot0 > 0) b.write('Start with ${money(pot0)} of your savings above the cushion. ');
+      if (pot0 > 0) b.write('You have ${money(pot0)} toward it: ${sources.join(' and ')}. ');
       if (verdict == 'onTrack') {
         b.write('Put aside ${money(pace)} a month and you\'ll have ${money(upfront)} by $targetLabel');
         b.write(readyIn < monthsLeft ? ', or save all your spare ${money(surplus)} to get there by ${at(readyIn)}. ' : '. ');
@@ -451,10 +465,13 @@ Assessment assess(Money money0, Project p, {required String today}) {
     afterSurplus: afterSurplus,
     principal: principal,
     pace: pace,
+    earmarked: earmarked,
+    cardDebt: card,
     efMonths: efMonths,
     monthsLeft: monthsLeft,
     term: term,
     readyIn: readyIn,
+    efReadyIn: surplus > 0 || efOnly.efDone == 0 ? efOnly.efDone : null,
     dbr: dbr,
     targetLabel: targetLabel,
     readyLabel: readyIn == null ? 'Not within 30 years' : (readyIn == 0 ? 'Now' : at(readyIn)),

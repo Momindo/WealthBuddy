@@ -90,7 +90,57 @@ void main() {
     expect(a.efMonths, 9);
   });
 
+  group('money set aside', () {
+    Project suv([List<Contribution> c = const []]) => project('car', 120000, 12)..contributions = [...c];
+
+    test('set aside at the start brings the date forward', () {
+      expect(assess(salaried(), suv(), today: today).readyIn, 19);
+      final a = assess(salaried(), suv([const Contribution(amount: 10000, source: 'Set aside at start', date: today)]), today: today);
+      expect(a.earmarked, 10000);
+      expect(a.readyIn, 18); // Apr 2028, as in the mockup
+    });
+
+    test('a bonus to the project: 3 months sooner', () {
+      final d = AppData(money: salaried(), projects: [suv([const Contribution(amount: 10000, source: 'Set aside at start', date: today)])]);
+      d.addMoney(1, 25000, 'Bonus', 'project', today);
+      final a = assess(d.money, d.projects.first, today: today);
+      expect(a.earmarked, 35000);
+      expect(a.readyIn, 15); // Jan 2028
+    });
+
+    test('the same bonus to the cushion: same date, cushion full sooner', () {
+      final d = AppData(money: salaried(), projects: [suv([const Contribution(amount: 10000, source: 'Set aside at start', date: today)])]);
+      final before = assess(d.money, d.projects.first, today: today);
+      d.addMoney(1, 25000, 'Bonus', 'cushion', today);
+      final a = assess(d.money, d.projects.first, today: today);
+      expect(d.money.savings, 30000);
+      expect(a.readyIn, 15);
+      expect(before.efReadyIn, 4);
+      expect(a.efReadyIn, 1);
+      expect(d.projects.first.saved, 10000); // cushion money isn't counted in the pot
+    });
+
+    test('paying the card: extra beyond the balance goes to the project', () {
+      final d = AppData(money: salaried(card: 4000), projects: [suv()]);
+      d.addMoney(1, 10000, 'Gift', 'card', today);
+      expect(d.money.cardDebt, 0);
+      expect(d.projects.first.saved, 6000);
+    });
+
+    test('set aside still waits for the safety cushion', () {
+      final a = assess(salaried(), project('car', 60000, 24)..contributions = [const Contribution(amount: 60000, source: 'Set aside at start', date: today)], today: today);
+      expect(a.readyIn, 4); // the money is there, but the cushion fills in month 4
+      expect(titles(a).first, 'Build your safety cushion first');
+    });
+
+    test('saved money survives a save and reload', () {
+      final d = AppData(money: salaried(), projects: [suv([const Contribution(amount: 10000, source: 'Bonus', date: today)])]);
+      expect(AppData.fromJson(d.toJson()).projects.first.saved, 10000);
+    });
+  });
+
   test('questions adapt to the project', () {
+    expect(projectQuestions(project('car', 1, 1), isNew: true), [Q.cost, Q.when, Q.pay, Q.setAside]);
     expect(projectQuestions(project('car', 1, 1, pay: 'loan')), [Q.cost, Q.when, Q.pay, Q.loan]);
     expect(projectQuestions(project('car', 1, 1)), [Q.cost, Q.when, Q.pay]);
     expect(projectQuestions(project('home', 1, 1)), [Q.cost, Q.when, Q.pay, Q.rent]);

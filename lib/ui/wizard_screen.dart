@@ -11,6 +11,8 @@ import 'widgets.dart';
 
 enum WizardMode { create, edit, money }
 
+const startSource = 'Set aside at start';
+
 class WizardScreen extends ConsumerStatefulWidget {
   const WizardScreen.newProject(this.type, {super.key})
       : mode = WizardMode.create,
@@ -41,10 +43,12 @@ class _WizardState extends ConsumerState<WizardScreen> {
   String? err;
   int? whenMonths;
   bool? carriesCard;
+  bool? hasSetAside;
 
   final name = TextEditingController(), cost = TextEditingController(), rate = TextEditingController(), rent = TextEditingController();
   final income = TextEditingController(), spending = TextEditingController(), savings = TextEditingController();
   final repayments = TextEditingController(), card = TextEditingController(), investments = TextEditingController();
+  final setAside = TextEditingController();
 
   String _plain(double? v) => v == null ? '' : (v == v.roundToDouble() ? v.toInt().toString() : v.toString());
   double? _num(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '').trim());
@@ -81,7 +85,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
 
   @override
   void dispose() {
-    for (final c in [name, cost, rate, rent, income, spending, savings, repayments, card, investments]) {
+    for (final c in [name, cost, rate, rent, income, spending, savings, repayments, card, investments, setAside]) {
       c.dispose();
     }
     super.dispose();
@@ -89,7 +93,10 @@ class _WizardState extends ConsumerState<WizardScreen> {
 
   List<Q> get flow {
     if (widget.mode == WizardMode.money) return moneyQuestions;
-    return [...projectQuestions(p), ...(moneyWasComplete && !editMoney ? [Q.moneyCheck] : moneyQuestions)];
+    return [
+      ...projectQuestions(p, isNew: widget.mode == WizardMode.create),
+      ...(moneyWasComplete && !editMoney ? [Q.moneyCheck] : moneyQuestions),
+    ];
   }
 
   ProjectKind get k => kindOf(p.type);
@@ -117,6 +124,14 @@ class _WizardState extends ConsumerState<WizardScreen> {
         final r = _num(rent);
         if (r == null || r < 0) return _fail('Enter your monthly rent, or tap "I don\'t pay rent".');
         p.rent = r;
+      case Q.setAside:
+        if (hasSetAside == null) return _fail('Choose one.');
+        p.contributions.removeWhere((c) => c.source == startSource);
+        if (hasSetAside!) {
+          final v = _num(setAside);
+          if (v == null || v <= 0) return _fail('Enter how much you\'ve set aside, or choose "Not yet".');
+          p.contributions.add(Contribution(amount: v, source: startSource, date: today));
+        }
       case Q.income:
         final v = _num(income);
         if (v == null || v <= 0) return _fail('Enter your monthly take-home pay.');
@@ -248,9 +263,16 @@ class _WizardState extends ConsumerState<WizardScreen> {
         Q.pay => ('How do you want to pay?', 'Not sure? Pick savings. The plan will tell you if a ${k.loanName} would help.'),
         Q.loan => ('About the ${k.loanName}', 'Typical values are filled in. Change them if you have a quote.'),
         Q.rent => ('How much rent do you pay now?', 'Per month. It stops once you move in, so it counts in favour of buying.'),
+        Q.setAside => (
+            'Have you already put money aside for this?',
+            'Cash kept just for this ${k.noun}. Leave it out of your general savings so it isn\'t counted twice.'
+          ),
         Q.income => ('What do you take home each month?', 'After deductions. Include any regular extra income.'),
         Q.spending => ('How much do you spend in a month?', 'Rent, bills, food, school fees: everything except loan repayments. A rough figure is fine.'),
-        Q.savings => ('How much do you have in savings?', 'Cash you could reach within a few days, in current and savings accounts.'),
+        Q.savings => (
+            'How much do you have in savings?',
+            'Cash you could reach within a few days, in current and savings accounts. Leave out money set aside for a project.'
+          ),
         Q.repayments => ('Do you pay any loans each month?', 'Car loan, personal loan or mortgage instalments. Leave out credit cards.'),
         Q.card => ('Do you carry a credit card balance?', 'Money you owe on cards that you don\'t clear in full each month.'),
         Q.situation => ('A bit about your situation', 'This sets how big your safety cushion should be.'),
@@ -307,6 +329,18 @@ class _WizardState extends ConsumerState<WizardScreen> {
         ];
       case Q.rent:
         return [_amount(rent, label: 'Monthly rent', quick: [('I don\'t pay rent', 0)])];
+      case Q.setAside:
+        return [
+          _option('Not yet', null, hasSetAside == false, () => setState(() {
+                hasSetAside = false;
+                err = null;
+              })),
+          _option('Yes, I have some set aside', null, hasSetAside == true, () => setState(() {
+                hasSetAside = true;
+                err = null;
+              })),
+          if (hasSetAside == true) ...[const SizedBox(height: 12), _amount(setAside, label: 'Set aside for this')],
+        ];
       case Q.income:
         return [_amount(income, label: 'Monthly take-home', quick: [for (final v in <double>[8000, 12000, 15000, 20000, 25000, 35000, 50000]) (fmt(v), v)])];
       case Q.spending:

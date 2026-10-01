@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
+import 'add_money_sheet.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
@@ -79,6 +80,40 @@ class ResultScreen extends ConsumerWidget {
               Text(a.summary, style: t.bodyMedium),
             ]),
           ),
+
+          // Money set aside
+          Section(title: 'Money set aside', children: [
+            Row2('For this project', '${money(a.earmarked)} of ${money(a.upfront)}', bold: true),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: a.upfront > 0 ? (a.earmarked / a.upfront).clamp(0, 1).toDouble() : 0,
+                minHeight: 8,
+                color: toneColor(context, Tone.good),
+                backgroundColor: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final c in p.contributions.reversed)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: [
+                  Expanded(
+                    child: Text(
+                      '${c.source} · ${_day(c.date)}${c.to == 'cushion' ? ' · to safety cushion' : c.to == 'card' ? ' · to credit card' : ''}',
+                      style: t.bodySmall,
+                    ),
+                  ),
+                  Text('+${fmt(c.amount)}', style: t.bodySmall?.copyWith(color: toneColor(context, Tone.good))),
+                ]),
+              ),
+            if (p.contributions.isEmpty) note(context, 'Nothing set aside yet. Add a bonus or gift when one comes in.'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(onPressed: () => showAddMoney(context, p.id), icon: const Icon(Icons.add), label: const Text('Add money')),
+            ),
+          ]),
 
           // The numbers behind it
           Section(title: 'The numbers', children: [
@@ -170,3 +205,6 @@ class _StepTile extends StatelessWidget {
     );
   }
 }
+
+const _mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+String _day(String iso) => '${int.parse(iso.substring(8, 10))} ${_mon[int.parse(iso.substring(5, 7)) - 1]} ${iso.substring(0, 4)}';
