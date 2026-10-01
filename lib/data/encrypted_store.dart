@@ -1,6 +1,6 @@
-// Encrypted local storage. The whole app state is one AES-256-GCM encrypted file in the app's
-// private directory; the key lives in the iOS Keychain / Android Keystore via flutter_secure_storage.
-// Nothing is sent anywhere. When data grows, this can move to SQLCipher without changing callers.
+// Encrypted local storage. The app's data is one AES-256-GCM encrypted file in the app's private
+// directory; the key lives in the iOS Keychain / Android Keystore via flutter_secure_storage.
+// Nothing is sent anywhere.
 import 'dart:convert';
 import 'dart:io';
 
@@ -12,7 +12,8 @@ import '../domain/models.dart';
 
 class EncryptedStore {
   static const _keyName = 'wealthbuddy.data-key.v1';
-  static const _fileName = 'wealthbuddy.bin';
+  static const _fileName = 'wealthbuddy.v2.bin'; // projects-only format
+  static const _oldFiles = ['wealthbuddy.bin']; // earlier tracker format, removed on wipe
 
   // resetOnError is off: a transient Keystore error must never silently replace the key,
   // because that would make the saved data unreadable.
@@ -22,7 +23,7 @@ class EncryptedStore {
   );
   final AesGcm _algo = AesGcm.with256bits();
 
-  Future<File> _file() async => File('${(await getApplicationSupportDirectory()).path}/$_fileName');
+  Future<String> _dir() async => (await getApplicationSupportDirectory()).path;
 
   Future<SecretKey> _key() async {
     var b64 = await _secure.read(key: _keyName);
@@ -34,26 +35,29 @@ class EncryptedStore {
     return SecretKey(base64Decode(b64));
   }
 
-  Future<AppState?> load() async {
-    final f = await _file();
+  Future<AppData?> load() async {
+    final f = File('${await _dir()}/$_fileName');
     if (!await f.exists()) return null;
     final box = SecretBox.fromConcatenation(await f.readAsBytes(), nonceLength: _algo.nonceLength, macLength: _algo.macAlgorithm.macLength);
     final clear = await _algo.decrypt(box, secretKey: await _key());
-    return AppState.fromJson((jsonDecode(utf8.decode(clear)) as Map).cast<String, dynamic>());
+    return AppData.fromJson((jsonDecode(utf8.decode(clear)) as Map).cast<String, dynamic>());
   }
 
-  Future<void> save(AppState s) async {
-    final box = await _algo.encrypt(utf8.encode(jsonEncode(s.toJson())), secretKey: await _key());
-    final f = await _file();
+  Future<void> save(AppData d) async {
+    final box = await _algo.encrypt(utf8.encode(jsonEncode(d.toJson())), secretKey: await _key());
+    final f = File('${await _dir()}/$_fileName');
     final tmp = File('${f.path}.tmp');
     await tmp.writeAsBytes(box.concatenation(), flush: true);
     await tmp.rename(f.path); // atomic replace, so a crash mid-write never corrupts the data
   }
 
-  /// "Delete all data": removes the file and the key.
+  /// "Delete all data": removes the files and the key.
   Future<void> wipe() async {
-    final f = await _file();
-    if (await f.exists()) await f.delete();
+    final dir = await _dir();
+    for (final name in [_fileName, ..._oldFiles]) {
+      final f = File('$dir/$name');
+      if (await f.exists()) await f.delete();
+    }
     await _secure.delete(key: _keyName);
   }
 }

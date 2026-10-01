@@ -1,5 +1,4 @@
-// Smoke test: the app starts on the welcome screen when there's no saved data,
-// and "Explore with example data" opens the tabs with the example household.
+// Smoke test: the home screen lists project types, and picking one starts the questions.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/app/state.dart';
@@ -8,26 +7,28 @@ import 'package:wealth_buddy/domain/models.dart';
 import 'package:wealth_buddy/main.dart';
 
 class MemoryStore extends EncryptedStore {
-  AppState? saved;
+  AppData? saved;
   @override
-  Future<AppState?> load() async => saved;
+  Future<AppData?> load() async => saved;
   @override
-  Future<void> save(AppState s) async => saved = s.copy();
+  Future<void> save(AppData d) async => saved = d.copy();
   @override
   Future<void> wipe() async => saved = null;
 }
 
 void main() {
-  testWidgets('first launch shows the welcome screen, then the example opens the tabs', (tester) async {
+  testWidgets('pick a car, answer the first question', (tester) async {
     await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(MemoryStore())], child: const WealthBuddyApp()));
     await tester.pumpAndSettle();
-    expect(find.text('Start tracking'), findsOneWidget);
+    expect(find.text('What are you planning?'), findsOneWidget);
 
-    final explore = find.text('Explore with example data');
-    await tester.scrollUntilVisible(explore, 200);
-    await tester.tap(explore);
+    await tester.tap(find.text('Car'));
     await tester.pumpAndSettle();
-    expect(find.text('Overview'), findsOneWidget);
-    expect(find.text('Example data'), findsOneWidget);
+    expect(find.text('How much will the car cost?'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '60000');
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('When do you want it?'), findsOneWidget);
   });
 }

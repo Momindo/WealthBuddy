@@ -1,68 +1,74 @@
 # Wealth Buddy
 
-A private money app for UAE residents. It tracks spending and net worth, checks whether you can afford a car or a house, and says how much you can safely save or invest each month.
+Plan a big purchase: a car, a home, a vacation, a wedding. Answer a few questions and get a plan that says whether you can afford it, by when, and what to do first.
 
-No account and no personal details. All data stays on the phone, AES-256-GCM encrypted, with the key in the iOS Keychain or Android Keystore.
+No account and no personal details. Everything stays on the phone, AES-256-GCM encrypted, with the key in the iOS Keychain or Android Keystore.
+
+## How it works
+
+1. **Pick a project:** car, home, build a house, vacation, wedding, education, or something else.
+2. **Answer the project questions:** cost, when you want it, and for a car, home or other purchase, savings or a loan (with down payment, rate and term). Homes also ask your current rent.
+3. **Answer the money questions:** take-home pay, monthly spending, savings, loan repayments, credit card balance, who relies on your income and how steady it is, and optional investments. These are asked once and reused for every project.
+4. **Get the plan:**
+   - a verdict: Ready now, On track, Later or Rethink
+   - the numbers behind it
+   - the steps in order, with dates
+   - ways to make it work if it doesn't
+   - things to watch out for
+
+### The rules behind the plan (`lib/domain/assess.dart`)
+
+1. **Credit card debt first.** Savings above one month of essentials pay it down now, then spare money each month clears the rest. Card interest is modelled at 3% a month.
+2. **Safety cushion next.** Its size depends on your situation:
+
+   | Your situation | Cushion |
+   |---|---|
+   | Only you rely on your income, fixed salary | 3 months of essentials |
+   | Family relies on your income | 6 months |
+   | Income varies | 3 months more on top |
+
+   **Small purchases skip this step.** A purchase counts as small when it costs up to one month of take-home pay and is paid from savings. Your savings are still left alone, and the cushion comes after.
+3. **Save the upfront amount.** That's the full price, or the down payment plus fees. Savings above the cushion count first.
+4. **Buy, then check it still fits:**
+   - Loan repayments must stay under the UAE's 50% cap; under 35% counts as comfortable.
+   - Monthly costs afterwards must fit your spare money. Car running costs are estimated; a home adds upkeep and subtracts the rent you stop paying.
 
 ## Run it
 
 ```bash
-# 1. Install Flutter (stable): https://docs.flutter.dev/get-started/install
-# 2. Generate the Android and iOS folders around this code, and apply the app's settings
-./tool/setup.sh
-# 3. Check the engines, then start the app on a simulator or phone
-flutter test
+./tool/setup.sh     # generates the Android and iOS folders, sets minSdk 24, disables Android backup
+flutter test        # engine scenarios + smoke test
 flutter run
 ```
 
-`tool/setup.sh` runs `flutter create` for Android and iOS without touching `lib/` or `test/`. It then sets Android `minSdk` to 24 (needed by the secure storage plugin) and turns off Android cloud backup, since the encryption key can't be restored with it.
+CI (`.github/workflows/ci.yml`) runs analyze, tests, an Android debug APK and an unsigned iOS build on every push. It publishes the full output to the `ci-reports` branch.
 
-CI (`.github/workflows/ci.yml`) runs the tests and builds a debug APK and an unsigned iOS build on every push.
-
-## How it's built
+## Layout
 
 ```
 lib/
-  domain/            Pure Dart. No Flutter imports, fully unit-tested.
-    models.dart      AppState and its parts (JSON matches the prototype)
-    basics.dart      Categories, FX demo rates, money and month formatting
-    finance.dart     The shared plan: totals, income, household benchmarks, debt burden,
-                     monthly split, projects, suggestions, projections
-    recurring.dart   Repeating costs (yearly rent spread monthly) and setup helpers
-    parsers.dart     Bank SMS, CSV and statement-line parsing, import classification
-  data/
-    encrypted_store.dart   One encrypted file; atomic writes; "Delete all data" wipes file and key
-  app/state.dart     Riverpod: one controller owns the state, every tab reads Finance from it
-  ui/                Welcome, Set up your month, and the five tabs
+  domain/
+    assess.dart      Project kinds, which questions to ask, the decision engine
+    models.dart      Money (asked once) and Project
+    format.dart      AED formatting and month helpers
+  data/encrypted_store.dart
+  app/state.dart     Riverpod controller, saves on every change
+  ui/
+    home_screen.dart    Pick a project, your projects
+    wizard_screen.dart  One question per screen
+    result_screen.dart  Verdict, numbers, plan, options
 test/
-  parity_test.dart   Dart engines vs results exported from the tested HTML prototype
-  fixtures/          Those exported inputs and expected results
-  widget_test.dart   Smoke test: first launch and example data
+  assess_test.dart   Scenarios: no cushion, small purchase, card debt, loan over cap,
+                     overspending, ready now, home rent offset, too soon
+  widget_test.dart
 ```
-
-Every change goes through `AppController.update`: copy the state, apply the change, expand repeating costs, save, publish. Every screen rebuilds from one `Finance` object, so a new project, transaction or setting updates every tab together.
-
-## Status
-
-Done in this milestone:
-
-- Guided setup: salary, rent (yearly in cheques) or mortgage, and regular costs
-- Manual expenses and income, repeating monthly or yearly
-- CSV statement import with review, skipped card payments and duplicate detection
-- Pasted bank SMS
-- Household-aware benchmarks, debt burden, projects with affordability checks and fixes
-- Invest tab: grow or safe, emergency fund, projection, suggestions feed
-
-Next:
-
-- **Android SMS capture.** A `BroadcastReceiver` feeding `parseSms`, plus the Play Store `READ_SMS` declaration. iOS doesn't allow reading SMS, so iPhone users rely on statements and manual entry.
-- **PDF and Excel statements.** The line parser (`linesToRaw`) is ready and tested. It needs an on-device PDF text extractor that supports passwords.
-- **Per-bank templates** for ENBD, ADCB, FAB, ADIB and Mashreq, with the generic parser as the fallback.
-- **Live FX and gold prices**, bundled fonts, and cheque-date reminders.
 
 ## Numbers to verify before release
 
-- **Benchmark ranges and household weights** are starter estimates. Tune them against UAE household expenditure data.
-- **Lending rules** used here: 50% repayment cap, 20% minimum down payment, 48-month car loans. Check them against current Central Bank rules.
-- **Scheme details:** unemployment insurance (ILOE) and gratuity rules.
-- **Suggestions stay educational.** They describe asset types and never recommend named products; personalised investment advice is licensed in the UAE.
+| Assumption | Value used |
+|---|---|
+| Lending | 50% repayment cap; 20% minimum down for cars and expat mortgages; car loans up to 48 months; mortgage fees about 6% |
+| Car running costs | 12% of the price a year |
+| Home upkeep | 1.5% of the price a year |
+| Card interest | 36% a year |
+| Small-purchase threshold | One month of take-home pay |
