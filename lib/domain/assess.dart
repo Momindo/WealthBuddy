@@ -55,7 +55,7 @@ ProjectKind kindOf(String type) => kinds[type] ?? kinds['other']!;
 
 /// Which questions to ask, in order. Money questions are skipped when they're already answered
 /// (the user gets a one-screen check instead), unless they choose to update them.
-enum Q { cost, when, pay, loan, rent, setAside, income, spending, savings, repayments, card, situation, investments, moneyCheck }
+enum Q { cost, when, pay, loan, rent, setAside, income, payday, spending, savings, repayments, card, situation, investments, moneyCheck }
 
 /// [isNew]: only a new project asks about money already set aside; later it's added with "Add money".
 List<Q> projectQuestions(Project p, {bool isNew = false}) {
@@ -63,7 +63,7 @@ List<Q> projectQuestions(Project p, {bool isNew = false}) {
   return [Q.cost, Q.when, if (k.canFinance) Q.pay, if (k.canFinance && p.pay == 'loan') Q.loan, if (p.type == 'home') Q.rent, if (isNew) Q.setAside];
 }
 
-const List<Q> moneyQuestions = [Q.income, Q.spending, Q.savings, Q.repayments, Q.card, Q.situation, Q.investments];
+const List<Q> moneyQuestions = [Q.income, Q.payday, Q.spending, Q.savings, Q.repayments, Q.card, Q.situation, Q.investments];
 
 double instalment(double principal, double annualRate, int months) {
   if (months <= 0) return 0;
@@ -96,6 +96,10 @@ class Assessment {
   final int efMonths, monthsLeft, term;
   final int? readyIn; // months from now until it can be bought, null if not within 30 years
   final int? efReadyIn; // months until the safety cushion is full, null if never
+  final int? cardReadyIn; // months until the credit card is clear
+  final int projStart; // month when saving for the project begins (after card and cushion)
+  final double potStart; // already held toward the upfront amount today
+  final List<double> cardPath, efPath, potPath; // balances by month on the fastest path
   final double? dbr; // loan repayments as % of take-home after buying
   final String targetLabel, readyLabel;
   final List<PlanStep> steps;
@@ -123,6 +127,12 @@ class Assessment {
     required this.term,
     required this.readyIn,
     required this.efReadyIn,
+    required this.cardReadyIn,
+    required this.projStart,
+    required this.potStart,
+    required this.cardPath,
+    required this.efPath,
+    required this.potPath,
     required this.dbr,
     required this.targetLabel,
     required this.readyLabel,
@@ -135,6 +145,14 @@ class Assessment {
 class _Sim {
   int? cardDone, efDone, readyIn;
   double pot = 0;
+  // Month-by-month balances (index 0 = today), kept for the first 20 years. Used for payday reminders.
+  final List<double> cardPath = [], efPath = [], potPath = [];
+  void record(double card, double ef, double pot) {
+    if (cardPath.length > 240) return;
+    cardPath.add(card);
+    efPath.add(ef);
+    potPath.add(pot);
+  }
 }
 
 /// Month-by-month: spare money goes to the card, then the cushion (unless skipped), then the project.
@@ -155,6 +173,7 @@ _Sim _simulate({
   bool ready() => cardClear() && efFull() && pot >= upfront - 0.5;
   if (cardClear()) s.cardDone = 0;
   if (efFull()) s.efDone = 0;
+  s.record(card, ef, pot);
   if (ready()) {
     s.readyIn = 0;
     s.pot = pot;
@@ -178,6 +197,7 @@ _Sim _simulate({
     if (avail > 0 && cardClear() && efFull() && pot < upfront) {
       pot += math.min(avail, upfront - pot);
     }
+    s.record(math.max(card, 0.0), ef, pot);
     if (ready()) {
       s.readyIn = m;
       break;
@@ -472,6 +492,12 @@ Assessment assess(Money money0, Project p, {required String today}) {
     term: term,
     readyIn: readyIn,
     efReadyIn: surplus > 0 || efOnly.efDone == 0 ? efOnly.efDone : null,
+    cardReadyIn: sim.cardDone,
+    projStart: projStart,
+    potStart: pot0,
+    cardPath: sim.cardPath,
+    efPath: sim.efPath,
+    potPath: sim.potPath,
     dbr: dbr,
     targetLabel: targetLabel,
     readyLabel: readyIn == null ? 'Not within 30 years' : (readyIn == 0 ? 'Now' : at(readyIn)),

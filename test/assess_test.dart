@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/domain/assess.dart';
 import 'package:wealth_buddy/domain/format.dart';
 import 'package:wealth_buddy/domain/models.dart';
+import 'package:wealth_buddy/domain/reminders.dart';
 
 const today = '2026-10-01';
 String inMonths(int n) => addMonths(monthKey(today), n);
@@ -11,7 +12,7 @@ Money salaried({double income = 20000, double spending = 12000, double savings =
     Money(income: income, spending: spending, savings: savings, repayments: repayments, cardDebt: card, family: family, variable: variable, investments: investments);
 
 Project project(String type, double cost, int months, {String pay = 'savings', double down = 20, double rate = 3.5, int term = 48, double? rent}) =>
-    Project(id: 1, type: type, name: type, cost: cost, target: inMonths(months), pay: pay, downPct: down, rate: rate, term: term, rent: rent);
+    Project(id: 1, type: type, name: type == 'car' && cost == 120000 ? 'Family SUV' : type, cost: cost, target: inMonths(months), pay: pay, downPct: down, rate: rate, term: term, rent: rent);
 
 List<String> titles(Assessment a) => a.steps.map((s) => s.title).toList();
 
@@ -136,6 +137,44 @@ void main() {
     test('saved money survives a save and reload', () {
       final d = AppData(money: salaried(), projects: [suv([const Contribution(amount: 10000, source: 'Bonus', date: today)])]);
       expect(AppData.fromJson(d.toJson()).projects.first.saved, 10000);
+    });
+  });
+
+  group('payday reminders', () {
+    AppData data(Money m, List<Project> ps) => AppData(money: m..payday = 25, projects: ps);
+    Project suv() => project('car', 120000, 12)..contributions = [const Contribution(amount: 10000, source: 'Set aside at start', date: today)];
+
+    test('no payday, no reminders', () {
+      expect(paydayReminders(AppData(money: salaried(), projects: [suv()]), today: today), isEmpty);
+      expect(paydayReminders(AppData(money: salaried()..payday = 0, projects: [suv()]), today: today), isEmpty);
+    });
+
+    test('cushion first, then saving for the project', () {
+      final r = paydayReminders(data(salaried(), [suv()]), today: today, count: 6);
+      expect(r.first.date, '2026-10-25');
+      expect(r.first.title, 'Payday: build your safety cushion');
+      expect(r.first.body, contains('AED 8,000'));
+      expect(r.first.body, contains('36% full')); // 13,000 of 36,000
+      expect(r[3].body, contains('That completes it'));
+      expect(r[4].title, 'Payday: Family SUV');
+      expect(r[4].body, contains('15%')); // 19,000 of 120,000 by month 5, rounded down
+    });
+
+    test('credit card comes first', () {
+      final r = paydayReminders(data(salaried(card: 10000), [suv()]), today: today);
+      expect(r.first.title, 'Payday: clear your credit card');
+      expect(r.first.body, contains('left after this'));
+    });
+
+    test('goal reached', () {
+      final car = project('car', 60000, 24)..contributions = [const Contribution(amount: 60000, source: 'Bonus', date: today)];
+      final r = paydayReminders(data(salaried(savings: 100000), [car]), today: today);
+      expect(r.first.title, 'You can afford the car');
+    });
+
+    test('payday 31 falls on the last day of shorter months', () {
+      final r = paydayReminders(AppData(money: salaried()..payday = 31, projects: [suv()]), today: today, count: 2);
+      expect(r.map((x) => x.date), ['2026-10-31', '2026-11-30']);
     });
   });
 

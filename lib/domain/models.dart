@@ -12,8 +12,9 @@ class Money {
   double? investments; // optional: shares, funds, gold, crypto that could be sold
   bool? family; // others rely on this income
   bool? variable; // income varies month to month
+  int? payday; // day of the month salary arrives (1–31), 0 = it varies, null = not asked yet
 
-  Money({this.income, this.spending, this.savings, this.repayments, this.cardDebt, this.investments, this.family, this.variable});
+  Money({this.income, this.spending, this.savings, this.repayments, this.cardDebt, this.investments, this.family, this.variable, this.payday});
 
   bool get complete =>
       income != null && spending != null && savings != null && repayments != null && cardDebt != null && family != null && variable != null;
@@ -27,11 +28,12 @@ class Money {
         investments: _dn(j['investments']),
         family: j['family'] as bool?,
         variable: j['variable'] as bool?,
+        payday: (j['payday'] as num?)?.toInt(),
       );
 
   Map<String, dynamic> toJson() => {
         'income': income, 'spending': spending, 'savings': savings, 'repayments': repayments,
-        'cardDebt': cardDebt, 'investments': investments, 'family': family, 'variable': variable,
+        'cardDebt': cardDebt, 'investments': investments, 'family': family, 'variable': variable, 'payday': payday,
       };
 
   Money copy() => Money.fromJson(toJson());
@@ -98,19 +100,41 @@ class Project {
   Project copy() => Project.fromJson(toJson());
 }
 
+/// App preferences. Stored with the rest of the data, encrypted.
+class Settings {
+  String theme; // system | light | dark
+  bool privacySeen; // the first-launch privacy pop-up has been shown
+  bool reminders; // payday reminder at 3 pm
+  bool appLock; // ask for fingerprint, face or device PIN when the app opens
+
+  Settings({this.theme = 'system', this.privacySeen = false, this.reminders = true, this.appLock = false});
+
+  factory Settings.fromJson(Map<String, dynamic> j) => Settings(
+        theme: (j['theme'] as String?) ?? 'system',
+        privacySeen: (j['privacySeen'] as bool?) ?? false,
+        reminders: (j['reminders'] as bool?) ?? true,
+        appLock: (j['appLock'] as bool?) ?? false,
+      );
+
+  Map<String, dynamic> toJson() => {'theme': theme, 'privacySeen': privacySeen, 'reminders': reminders, 'appLock': appLock};
+}
+
 class AppData {
   Money money;
   List<Project> projects;
-  AppData({Money? money, List<Project>? projects})
+  Settings settings;
+  AppData({Money? money, List<Project>? projects, Settings? settings})
       : money = money ?? Money(),
-        projects = projects ?? [];
+        projects = projects ?? [],
+        settings = settings ?? Settings();
 
   factory AppData.fromJson(Map<String, dynamic> j) => AppData(
         money: Money.fromJson(((j['money'] as Map?) ?? {}).cast<String, dynamic>()),
         projects: ((j['projects'] as List?) ?? []).map((e) => Project.fromJson((e as Map).cast<String, dynamic>())).toList(),
+        settings: Settings.fromJson(((j['settings'] as Map?) ?? {}).cast<String, dynamic>()),
       );
 
-  Map<String, dynamic> toJson() => {'money': money.toJson(), 'projects': projects.map((p) => p.toJson()).toList()};
+  Map<String, dynamic> toJson() => {'money': money.toJson(), 'projects': projects.map((p) => p.toJson()).toList(), 'settings': settings.toJson()};
 
   AppData copy() => AppData.fromJson(toJson());
 

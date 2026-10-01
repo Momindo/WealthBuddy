@@ -28,6 +28,13 @@ jobs:
         continue-on-error: true
         run: ./tool/setup.sh > reports/setup.txt 2>&1
 
+      - name: Keep patched platform files for review
+        if: always()
+        run: |
+          cp android/app/build.gradle.kts reports/ 2>/dev/null || true
+          cp android/app/src/main/AndroidManifest.xml reports/ 2>/dev/null || true
+          find android/app/src/main -name 'MainActivity.*' -exec cp {} reports/ \; 2>/dev/null || true
+
       - name: Analyze
         id: analyze
         if: steps.setup.outcome == 'success'

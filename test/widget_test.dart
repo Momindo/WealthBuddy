@@ -1,4 +1,4 @@
-// Smoke test: the home screen lists project types, and picking one starts the questions.
+// Widget tests: first launch (privacy pop-up, picking a project) and adding money from the projects list.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +19,10 @@ class MemoryStore extends EncryptedStore {
 
 void main() {
   testWidgets('pick a car, answer the first question', (tester) async {
-    await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(MemoryStore())], child: const WealthBuddyApp()));
+    await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(MemoryStore()), reminderProvider.overrideWithValue(null), lockProvider.overrideWithValue(null)], child: const WealthBuddyApp()));
+    await tester.pumpAndSettle();
+    expect(find.text('Your money stays yours'), findsOneWidget); // first-launch privacy pop-up
+    await tester.tap(find.text('Got it'));
     await tester.pumpAndSettle();
     expect(find.text('What are you planning?'), findsOneWidget);
 
@@ -45,8 +48,9 @@ void main() {
             Contribution(amount: 10000, source: 'Set aside at start', date: '2026-10-01'),
           ]),
         ],
+        settings: Settings(privacySeen: true),
       );
-    await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(store)], child: const WealthBuddyApp()));
+    await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(store), reminderProvider.overrideWithValue(null), lockProvider.overrideWithValue(null)], child: const WealthBuddyApp()));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Add money'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('AED 10,000 of AED 120,000'), findsOneWidget);

@@ -39,10 +39,23 @@ No account and no personal details. Everything stays on the phone, AES-256-GCM e
    - Loan repayments must stay under the UAE's 50% cap; under 35% counts as comfortable.
    - Monthly costs afterwards must fit your spare money. Car running costs are estimated; a home adds upkeep and subtracts the rent you stop paying.
 
+## App basics
+
+- **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.
+- **First launch:** a one-second splash, then a one-time privacy pop-up: everything stays on this phone, encrypted; no cloud and no account; no ads and no tracking; no name, email or phone number. It's available again from Settings → Privacy.
+- **Payday reminders:** the money questions include the day salary arrives. At 3 pm on payday a local notification says what to do with this month's spare money, written from the plan by `lib/domain/reminders.dart`:
+  - pay down the card
+  - fill the safety cushion
+  - put aside X for the project, with the percentage reached
+  - or "You can afford the …" once it's ready
+
+  The next three are scheduled on the phone and refreshed on every change. The phone can't see the bank, so messages say what to do rather than claiming anything was saved.
+- **Settings:** appearance (system, light or dark), payday reminder on or off and the payday itself, app lock with fingerprint, face or phone PIN, update my money, privacy, delete all data, version.
+
 ## Run it
 
 ```bash
-./tool/setup.sh     # generates the Android and iOS folders, sets minSdk 24, disables Android backup
+./tool/setup.sh     # generates Android and iOS folders, applies tool/patch_platforms.py, makes icons and splash
 flutter test        # engine scenarios + smoke test
 flutter run
 ```

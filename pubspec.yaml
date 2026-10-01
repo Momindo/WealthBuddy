@@ -1,7 +1,7 @@
 name: wealth_buddy
 description: Plan a big purchase. Answer a few questions and get a plan that says whether you can afford it, by when, and what to do first.
 publish_to: none
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -13,11 +13,34 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   cryptography: ^2.7.0
   path_provider: ^2.1.5
+  flutter_local_notifications: ^22.3.1
+  timezone: ^0.11.0
+  local_auth: ^3.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 flutter:
   uses-material-design: true
+
+# App icon: steps rising to a gold coin (rendered by tool/make_brand.py)
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/brand/icon.png
+  adaptive_icon_background: "#0F5C4D"
+  adaptive_icon_foreground: assets/brand/icon_foreground.png
+  remove_alpha_ios: true
+  min_sdk_android: 24
+
+# Native splash, shown while Flutter starts; the in-app splash takes over with the same look
+flutter_native_splash:
+  color: "#0F5C4D"
+  image: assets/brand/splash.png
+  android_12:
+    color: "#0F5C4D"
+    image: assets/brand/splash_android12.png

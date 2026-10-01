@@ -5,6 +5,8 @@ import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
 import 'add_money_sheet.dart';
+import 'logo.dart';
+import 'settings_screen.dart';
 import 'result_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
@@ -19,25 +21,12 @@ class HomeScreen extends ConsumerWidget {
     final t = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text.rich(TextSpan(children: [
-          TextSpan(text: 'Wealth', style: TextStyle(fontWeight: FontWeight.w700)),
-          TextSpan(text: 'Buddy', style: TextStyle(fontWeight: FontWeight.w700, color: gold)),
-        ])),
+        title: const BrandTitle(),
         actions: [
-          PopupMenuButton<String>(
-            onSelected: (v) async {
-              if (v == 'money') {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const WizardScreen.money()));
-              } else if (v == 'wipe' &&
-                  await confirm(context, 'Delete all data?', 'Your projects and answers are removed from this phone, along with the encryption key. This cannot be undone.',
-                      'Delete everything')) {
-                await ref.read(appProvider.notifier).wipe();
-              }
-            },
-            itemBuilder: (_) => [
-              if (data.money.complete) const PopupMenuItem(value: 'money', child: Text('Update my money')),
-              const PopupMenuItem(value: 'wipe', child: Text('Delete all data')),
-            ],
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),

@@ -129,3 +129,68 @@ Future<bool> confirm(BuildContext c, String title, String body, String action) a
       ]),
     ) ??
     false;
+
+/// Day-of-month picker for payday: 1–31 plus "It varies" (stored as 0).
+class PaydayPicker extends StatelessWidget {
+  const PaydayPicker({super.key, required this.selected, required this.onSelected});
+  final int? selected;
+  final ValueChanged<int> onSelected;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Wrap(spacing: 6, runSpacing: 6, children: [
+        for (var d = 1; d <= 31; d++)
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: Material(
+              color: selected == d ? cs.primary : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => onSelected(d),
+                child: Center(child: Text('$d', style: TextStyle(color: selected == d ? cs.onPrimary : null, fontWeight: FontWeight.w600))),
+              ),
+            ),
+          ),
+      ]),
+      const SizedBox(height: 10),
+      ChoiceChip(label: const Text('It varies'), selected: selected == 0, onSelected: (_) => onSelected(0)),
+    ]);
+  }
+}
+
+String paydayLabel(int? day) {
+  if (day == null) return 'Not set';
+  if (day == 0) return 'Varies';
+  final suffix = (day % 100 >= 11 && day % 100 <= 13) ? 'th' : switch (day % 10) { 1 => 'st', 2 => 'nd', 3 => 'rd', _ => 'th' };
+  return '$day$suffix of the month';
+}
+
+/// The privacy promise: shown once on first launch, and from Settings.
+Future<void> showPrivacy(BuildContext context) => showDialog<void>(
+      context: context,
+      builder: (d) {
+        final cs = Theme.of(d).colorScheme;
+        Widget item(IconData icon, String text) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(icon, size: 20, color: cs.primary),
+                const SizedBox(width: 12),
+                Expanded(child: Text(text)),
+              ]),
+            );
+        return AlertDialog(
+          icon: Icon(Icons.shield_outlined, color: cs.primary),
+          title: const Text('Your money stays yours'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            item(Icons.phone_android, 'Everything stays on this phone, encrypted'),
+            item(Icons.cloud_off_outlined, 'No cloud and no account'),
+            item(Icons.block, 'No ads and no tracking'),
+            item(Icons.person_off_outlined, 'No name, email or phone number needed'),
+          ]),
+          actions: [FilledButton(onPressed: () => Navigator.pop(d), child: const Text('Got it'))],
+        );
+      },
+    );

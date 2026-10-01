@@ -136,6 +136,9 @@ class _WizardState extends ConsumerState<WizardScreen> {
         final v = _num(income);
         if (v == null || v <= 0) return _fail('Enter your monthly take-home pay.');
         m.income = v;
+      case Q.payday:
+        if (m.payday == null) return _fail('Pick a day, or "It varies".');
+        if (m.payday! > 0 && ref.read(appProvider).data.settings.reminders) ref.read(reminderProvider)?.requestPermission();
       case Q.spending:
         final v = _num(spending);
         if (v == null || v < 0) return _fail('Enter a rough monthly figure, or tap one of the estimates.');
@@ -268,6 +271,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
             'Cash kept just for this ${k.noun}. Leave it out of your general savings so it isn\'t counted twice.'
           ),
         Q.income => ('What do you take home each month?', 'After deductions. Include any regular extra income.'),
+        Q.payday => ('Which day is your salary paid?', 'On payday at 3 pm you\'ll get a reminder to put money aside. You can turn it off in Settings.'),
         Q.spending => ('How much do you spend in a month?', 'Rent, bills, food, school fees: everything except loan repayments. A rough figure is fine.'),
         Q.savings => (
             'How much do you have in savings?',
@@ -343,6 +347,15 @@ class _WizardState extends ConsumerState<WizardScreen> {
         ];
       case Q.income:
         return [_amount(income, label: 'Monthly take-home', quick: [for (final v in <double>[8000, 12000, 15000, 20000, 25000, 35000, 50000]) (fmt(v), v)])];
+      case Q.payday:
+        return [
+          PaydayPicker(
+              selected: m.payday,
+              onSelected: (d) => setState(() {
+                    m.payday = d;
+                    err = null;
+                  })),
+        ];
       case Q.spending:
         final inc = m.income ?? 0;
         return [
@@ -384,6 +397,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
         return [
           Section(children: [
             Row2('Take-home pay', '${money(m.income ?? 0)} / month'),
+            Row2('Payday', paydayLabel(m.payday)),
             Row2('Spending', '${money(m.spending ?? 0)} / month'),
             Row2('Savings', money(m.savings ?? 0)),
             Row2('Loan repayments', '${money(m.repayments ?? 0)} / month'),
