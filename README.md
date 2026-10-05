@@ -94,6 +94,20 @@ Adding a project, or changing one's cost, date or loan, ends with a last step **
 - the **earliest want-by date that keeps everything else on time** (galloping then binary search, up to 10 years), with **Use [date]**
 - **Add it** / **Save changes** never blocks; it just puts the facts first
 
+### Price staleness check
+
+The app never goes online, so it remembers **when each price was last set or confirmed** (`Project.priceDate`) and asks again once prices of that kind usually move:
+
+| Project | Ask again after |
+|---|---|
+| Car, home, build, renovation, wedding, business, baby, other | 6 months |
+| Vacation, Hajj, phone or laptop | 3 months |
+| Education | 12 months |
+| Gold | only before buying (it moves daily; the amount is a budget) |
+| Any loan rate | 3 months |
+
+Within 2 months of buying it always asks for a fresh quote (if the price is more than 2 weeks old). The home card shows "⏱ Price checked 7 months ago"; the plan shows **Is AED 120,000 still right?** with **Still right** (re-dates it) or **Update**, which previews the new ready date and what it does to the other projects before **Save price**. Projects saved before 0.8.0 start from the day of the update.
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.
@@ -147,4 +161,5 @@ test/
 | Card interest | 36% a year |
 | Small-purchase threshold | One month of take-home pay |
 | Price rises (cost of waiting) | Homes, building, renovation 3% a year; trips, weddings, Hajj 4%; education 5% |
+| Price holds for | 3, 6 or 12 months by type; loan rates 3 months; fresh quote within 2 months of buying |
 | Regret check | Spare after buying ≥ 10% of pay; repayments ≤ 35%; cushion within half a month of its target |

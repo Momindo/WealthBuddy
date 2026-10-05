@@ -380,6 +380,45 @@ void main() {
     });
   });
 
+  group('price staleness', () {
+    Staleness? check(Project p, {Money? m}) => staleness(p, assess(m ?? salaried(), p, today: today), today: today);
+
+    test('a car priced 7 months ago is due a check', () {
+      final st = check(project('car', 60000, 24)..priceDate = '2026-03-01');
+      expect(st, isNotNull);
+      expect(st!.price, isTrue);
+      expect(st.months, 7);
+      expect(st.chip, 'Price checked 7 months ago');
+    });
+
+    test('education fees hold for a year', () {
+      expect(check(project('education', 60000, 24)..priceDate = '2026-03-01'), isNull);
+    });
+
+    test('a loan rate goes stale after about 3 months', () {
+      final st = check(project('car', 60000, 24, pay: 'loan')..priceDate = '2026-06-15');
+      expect(st!.rate, isTrue);
+      expect(st.price, isFalse);
+    });
+
+    test('close to buying, always ask for a fresh quote', () {
+      final st = check(project('car', 60000, 2)..priceDate = '2026-09-10', m: salaried(savings: 200000));
+      expect(st!.nearBuy, isTrue);
+      expect(st.chip, 'Get a fresh quote before you buy');
+    });
+
+    test('"Still right" clears it', () {
+      expect(check(project('car', 60000, 24)..priceDate = today), isNull);
+    });
+
+    test('old data without a price date loads without flags', () {
+      final p = Project.fromJson({'id': 1, 'type': 'car', 'name': 'Car', 'cost': 60000, 'target': inMonths(24)});
+      expect(p.priceDate, isNull);
+      expect(check(p), isNull);
+      expect(Project.fromJson((p..priceDate = '2026-03-01').toJson()).priceDate, '2026-03-01');
+    });
+  });
+
   test('car loans: 0% and 5 years', () {
     expect(instalment(60000, 0, 60), 1000);
     final a = assess(salaried(savings: 100000), project('car', 75000, 12, pay: 'loan', rate: 0, term: 60), today: today);

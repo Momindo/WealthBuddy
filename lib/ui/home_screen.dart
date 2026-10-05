@@ -78,7 +78,9 @@ class HomeScreen extends ConsumerWidget {
               Builder(builder: (context) {
                 final a = all?[p.id];
                 final sh = a?.share;
+                final stale = a == null ? null : staleness(p, a, today: today);
                 return ProjectCard(
+                  staleNote: stale == null ? null : '⏱ ${stale.chip}',
                   planNote: sh == null || a!.readyIn == 0
                       ? null
                       : sh.waiting
@@ -108,10 +110,11 @@ class HomeScreen extends ConsumerWidget {
 
 /// A project on the home screen: verdict, progress toward the upfront amount, ready date, and Add money.
 class ProjectCard extends StatelessWidget {
-  const ProjectCard({super.key, this.planNote, required this.projectName, required this.type, required this.assessment, required this.saved, required this.cost,
+  const ProjectCard({super.key, this.planNote, this.staleNote, required this.projectName, required this.type, required this.assessment, required this.saved, required this.cost,
       required this.wanted, required this.onOpen, required this.onAdd});
   final String projectName, type, wanted;
   final String? planNote; // saving now / waiting, when planned with other projects
+  final String? staleNote; // the price is worth checking again
   final Assessment? assessment;
   final double saved, cost;
   final VoidCallback onOpen, onAdd;
@@ -147,6 +150,11 @@ class ProjectCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text('${money(saved)} of ${money(goal)} set aside${a != null && a.loan ? ' (down payment)' : ''}', style: t.bodySmall),
             Text(a == null ? 'Wanted by $wanted' : 'Ready ${a.readyLabel == 'Now' ? 'now' : a.readyLabel} · wanted by $wanted', style: t.bodySmall),
+            if (staleNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(staleNote!, style: t.bodySmall?.copyWith(color: toneColor(context, Tone.warn), fontWeight: FontWeight.w600)),
+              ),
             if (planNote != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),

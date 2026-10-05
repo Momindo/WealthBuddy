@@ -70,10 +70,11 @@ class Project {
   double rate; // % a year
   int term; // months
   double? rent; // homes only: rent paid today, which stops after buying
+  String? priceDate; // yyyy-mm-dd the cost (and loan rate) were last set or confirmed
   List<Contribution> contributions;
 
   Project({required this.id, required this.type, required this.name, required this.cost, required this.target, this.pay = 'savings',
-      this.downPct = 20, this.rate = 0, this.term = 48, this.rent, List<Contribution>? contributions})
+      this.downPct = 20, this.rate = 0, this.term = 48, this.rent, this.priceDate, List<Contribution>? contributions})
       : contributions = contributions ?? [];
 
   /// Money held for this project (set aside at the start plus anything added to it).
@@ -90,11 +91,12 @@ class Project {
         rate: _dn(j['rate']) ?? 0,
         term: (j['term'] as num?)?.toInt() ?? 48,
         rent: _dn(j['rent']),
+        priceDate: j['priceDate'] as String?,
         contributions: ((j['contributions'] as List?) ?? []).map((e) => Contribution.fromJson((e as Map).cast<String, dynamic>())).toList(),
       );
 
   Map<String, dynamic> toJson() =>
-      {'id': id, 'type': type, 'name': name, 'cost': cost, 'target': target, 'pay': pay, 'downPct': downPct, 'rate': rate, 'term': term, 'rent': rent,
+      {'id': id, 'type': type, 'name': name, 'cost': cost, 'target': target, 'pay': pay, 'downPct': downPct, 'rate': rate, 'term': term, 'rent': rent, 'priceDate': priceDate,
         'contributions': contributions.map((c) => c.toJson()).toList()};
 
   Project copy() => Project.fromJson(toJson());

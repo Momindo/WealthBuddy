@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
+import '../domain/impact.dart';
 import '../domain/models.dart';
+import '../domain/whatif.dart';
 import 'add_money_sheet.dart';
 import 'whatif_screen.dart';
 import 'widgets.dart';
@@ -69,6 +71,8 @@ class ResultScreen extends ConsumerWidget {
               child: Text('${k.label} · ${money(p.cost)} · by ${monthLabel(p.target)}${a.loan ? ' · with a ${k.loanName}' : ''}', style: t.bodyMedium),
             ),
           ]),
+
+          if (staleness(p, a, today: todayIso()) != null) PriceCheck(projectId: p.id),
 
           // The verdict
           Container(
@@ -311,6 +315,135 @@ class SplitSection extends ConsumerWidget {
         ),
       ]),
     ]);
+  }
+}
+
+/// "Is AED 120,000 still right?" with Still right, or Update showing what the new price does before saving it.
+class PriceCheck extends ConsumerStatefulWidget {
+  const PriceCheck({super.key, required this.projectId});
+  final int projectId;
+  @override
+  ConsumerState<PriceCheck> createState() => _PriceCheckState();
+}
+
+class _PriceCheckState extends ConsumerState<PriceCheck> {
+  final today = todayIso();
+  bool editing = false;
+  final cost = TextEditingController(), rate = TextEditingController();
+
+  @override
+  void dispose() {
+    cost.dispose();
+    rate.dispose();
+    super.dispose();
+  }
+
+  double? _num(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '').trim());
+  String _plain(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+  @override
+  Widget build(BuildContext context) {
+    final data = ref.watch(appProvider).data;
+    final p = data.projects.firstWhere((x) => x.id == widget.projectId);
+    final a = assessIn(data, p, today: today);
+    final st = staleness(p, a, today: today);
+    if (st == null) return const SizedBox.shrink();
+    final t = Theme.of(context).textTheme;
+    final c = toneColor(context, Tone.warn);
+    final ctl = ref.read(appProvider.notifier);
+    final since = monthLabel(monthKey(p.priceDate!));
+
+    final body = StringBuffer();
+    if (st.nearBuy && !st.price) {
+      body.write('You\'re close to buying. Get a fresh quote so the plan uses the real price. ');
+    } else {
+      body.write('You set it in $since. ${priceMoves(p.type)} ');
+    }
+    if (st.rate) body.write('Your ${num1(p.rate)}% ${kindOf(p.type).loanName} rate was quoted then too; bank quotes usually last about 3 months.');
+
+    // Live preview of the new price
+    Widget? preview;
+    final newCost = _num(cost), newRate = a.loan ? _num(rate) : p.rate;
+    if (editing && newCost != null && newCost > 0 && newRate != null) {
+      final q = p.copy()
+        ..cost = newCost
+        ..rate = newRate;
+      final im = impactOf(data, data.money, q, today: today);
+      preview = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Ready ${a.readyLabel} → ${im.mine.readyLabel} · ${readyChange(a, im.mine)}', style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+        for (final o in im.others)
+          Text('${o.p.name}: ${o.changed ? '${o.before.readyLabel} → ${o.after.readyLabel}' : 'no change'}', style: t.bodySmall),
+      ]);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14), border: Border.all(color: c.withValues(alpha: 0.5))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Icon(Icons.timer_outlined, color: c, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text('Is ${money(p.cost)} still right?', style: t.titleSmall)),
+        ]),
+        const SizedBox(height: 6),
+        Text(body.toString().trim(), style: t.bodyMedium),
+        if (editing) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                  controller: cost,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(labelText: 'New price', prefixText: 'AED ')),
+            ),
+            if (a.loan) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                    controller: rate,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(labelText: 'Rate', suffixText: '%')),
+              ),
+            ],
+          ]),
+          if (preview != null) Padding(padding: const EdgeInsets.only(top: 10), child: preview),
+        ],
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, children: [
+          if (!editing)
+            TextButton(onPressed: () => ctl.update((d) => d.projects.firstWhere((x) => x.id == p.id).priceDate = today), child: const Text('Still right')),
+          if (!editing)
+            FilledButton.tonal(
+              onPressed: () => setState(() {
+                editing = true;
+                cost.text = _plain(p.cost);
+                rate.text = _plain(p.rate);
+              }),
+              child: const Text('Update'),
+            ),
+          if (editing) TextButton(onPressed: () => setState(() => editing = false), child: const Text('Cancel')),
+          if (editing)
+            FilledButton(
+              onPressed: newCost == null || newCost <= 0 || newRate == null || newRate < 0 || newRate > 30
+                  ? null
+                  : () {
+                      ctl.update((d) {
+                        final x = d.projects.firstWhere((x) => x.id == p.id);
+                        x.cost = newCost;
+                        x.rate = newRate;
+                        x.priceDate = today;
+                      });
+                      setState(() => editing = false);
+                    },
+              child: const Text('Save price'),
+            ),
+        ]),
+      ]),
+    );
   }
 }
 

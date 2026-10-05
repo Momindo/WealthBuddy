@@ -305,6 +305,11 @@ class _WizardState extends ConsumerState<WizardScreen> {
 
   void _finish() {
     final moneyOnly = widget.mode == WizardMode.money;
+    if (!moneyOnly) {
+      // The price is dated when it's first set and whenever the cost or loan terms change.
+      final old = ref.read(appProvider).data.projects.where((x) => x.id == p.id).firstOrNull;
+      if (old == null || old.cost != p.cost || old.rate != p.rate || old.pay != p.pay || p.priceDate == null) p.priceDate = today;
+    }
     ref.read(appProvider.notifier).update((d) {
       d.money = m.copy();
       if (!moneyOnly) {

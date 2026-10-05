@@ -25,6 +25,7 @@ class ProjectKind {
   final List<double> rateChips; // quick picks for the loan rate
   final String costTitle; // overrides "How much will the {noun} cost?"
   final double priceRise; // % a year the price tends to rise, for the cost of waiting
+  final int priceHolds; // months a price usually holds before it's worth checking again; 0 = only before buying
   const ProjectKind({
     required this.label,
     required this.noun,
@@ -42,6 +43,7 @@ class ProjectKind {
     this.rateChips = const [],
     this.costTitle = '',
     this.priceRise = 0,
+    this.priceHolds = 6,
   });
 }
 
@@ -55,21 +57,21 @@ const Map<String, ProjectKind> kinds = {
       label: 'Home', noun: 'home', buyTitle: 'Buy the home', costHint: 'The property price. Transfer and agent fees are added for you.',
       canFinance: true, loanName: 'mortgage', minDown: 20, fees: 6, rate: 4.5, term: 300, maxTerm: 300, runPctYear: 1.5, terms: [120, 180, 240, 300], rateChips: [3.5, 4.5, 5.5], priceRise: 3),
   'build': ProjectKind(label: 'Build a house', noun: 'house', buyTitle: 'Start building', costHint: 'Land and construction together.', priceRise: 3),
-  'vacation': ProjectKind(label: 'Vacation', noun: 'trip', buyTitle: 'Book the trip', costHint: 'Flights, hotels and spending money.', priceRise: 4),
+  'vacation': ProjectKind(label: 'Vacation', noun: 'trip', buyTitle: 'Book the trip', costHint: 'Flights, hotels and spending money.', priceRise: 4, priceHolds: 3),
   'wedding': ProjectKind(label: 'Wedding', noun: 'wedding', buyTitle: 'Pay for the wedding', costHint: 'Venue, catering, gifts, everything.', priceRise: 4),
-  'education': ProjectKind(label: 'Education', noun: 'studies', buyTitle: 'Pay the fees', costHint: 'Tuition, plus books and living costs if any.', priceRise: 5),
+  'education': ProjectKind(label: 'Education', noun: 'studies', buyTitle: 'Pay the fees', costHint: 'Tuition, plus books and living costs if any.', priceRise: 5, priceHolds: 12),
   'renovation': ProjectKind(
       label: 'Home renovation', noun: 'renovation', buyTitle: 'Start the work', costHint: 'Contractor quote, materials, and about 10% for surprises.',
       canFinance: true, loanName: 'personal loan', rate: 7, term: 36, maxTerm: 48, rateChips: [5, 7, 9], priceRise: 3),
-  'hajj': ProjectKind(label: 'Hajj or Umrah', noun: 'pilgrimage', buyTitle: 'Book the package', costHint: 'Package, flights and spending money for everyone going.', priceRise: 4),
+  'hajj': ProjectKind(label: 'Hajj or Umrah', noun: 'pilgrimage', buyTitle: 'Book the package', costHint: 'Package, flights and spending money for everyone going.', priceRise: 4, priceHolds: 3),
   'business': ProjectKind(
       label: 'Start a business', noun: 'business', buyTitle: 'Launch it', costTitle: 'How much do you need to start?',
       costHint: 'Trade licence, visa, office or desk, stock, and a few months of running costs.'),
   'baby': ProjectKind(
       label: 'New baby', noun: 'baby fund', buyTitle: 'You\'re ready for the baby', costTitle: 'How much do you want to set aside?',
       costHint: 'Delivery, nursery, car seat and pram, and a few months of extra costs.'),
-  'gold': ProjectKind(label: 'Buy gold', noun: 'gold', buyTitle: 'Buy the gold', costHint: 'What you want to spend, including making charges.'),
-  'gadget': ProjectKind(label: 'Phone or laptop', noun: 'device', buyTitle: 'Buy it', costHint: 'The price, plus a case, cover or warranty.'),
+  'gold': ProjectKind(label: 'Buy gold', noun: 'gold', buyTitle: 'Buy the gold', costHint: 'What you want to spend, including making charges.', priceHolds: 0),
+  'gadget': ProjectKind(label: 'Phone or laptop', noun: 'device', buyTitle: 'Buy it', costHint: 'The price, plus a case, cover or warranty.', priceHolds: 3),
   'other': ProjectKind(
       label: 'Something else', noun: 'purchase', buyTitle: 'Buy it', canFinance: true, loanName: 'personal loan', rate: 7, term: 36, maxTerm: 48, rateChips: [5, 7, 9]),
 };
@@ -774,3 +776,46 @@ Map<int, Assessment> assessAll(AppData d, {required String today}) {
 
 /// The plan for one project as the app shows it.
 Assessment assessIn(AppData d, Project p, {required String today}) => assessAll(d, today: today)[p.id]!;
+
+/// Why a project's price is worth checking again, or null when it isn't.
+class Staleness {
+  final int days; // since the price was last set or confirmed
+  final bool price; // older than prices of this kind usually hold
+  final bool rate; // a loan rate older than about 3 months
+  final bool nearBuy; // within 2 months of buying
+  const Staleness(this.days, {required this.price, required this.rate, required this.nearBuy});
+  int get months => days ~/ 30;
+  String get ago => months < 1 ? 'recently' : (months == 1 ? 'a month ago' : '$months months ago');
+
+  /// Short line for the home card.
+  String get chip => nearBuy && !price ? 'Get a fresh quote before you buy' : 'Price checked $ago';
+}
+
+const int rateHoldsDays = 90; // bank rate quotes usually last about 3 months
+const int freshQuoteDays = 14; // near buying, a quote older than this is worth refreshing
+
+int daysBetween(String fromIso, String toIso) => DateTime.parse(toIso).difference(DateTime.parse(fromIso)).inDays;
+
+Staleness? staleness(Project p, Assessment a, {required String today}) {
+  final since = p.priceDate;
+  if (since == null) return null;
+  final days = daysBetween(since, today);
+  final k = kindOf(p.type);
+  final price = k.priceHolds > 0 && days >= k.priceHolds * 30;
+  final rate = a.loan && days >= rateHoldsDays;
+  final nearBuy = a.verdict != 'rethink' && a.buyIn != null && a.buyIn! <= 2 && days >= freshQuoteDays;
+  if (!price && !rate && !nearBuy) return null;
+  return Staleness(days, price: price, rate: rate, nearBuy: nearBuy);
+}
+
+/// Why prices of this kind move, for the check-price card.
+String priceMoves(String type) => switch (type) {
+      'car' => 'Car prices and dealer offers change through the year.',
+      'home' => 'Property prices move, and so do fees.',
+      'build' || 'renovation' => 'Material and labour costs move.',
+      'vacation' || 'hajj' => 'Flights and packages are priced by season.',
+      'gadget' => 'New models come out and older ones drop in price.',
+      'education' => 'Fees are usually set once a year.',
+      'gold' => 'The gold price moves every day.',
+      _ => 'Quotes usually expire after a few months.',
+    };

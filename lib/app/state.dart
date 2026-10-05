@@ -3,6 +3,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/encrypted_store.dart';
+import '../domain/format.dart';
 import '../domain/models.dart';
 import '../services/lock_service.dart';
 import '../services/reminder_service.dart';
@@ -28,7 +29,16 @@ class AppController extends StateNotifier<AppModel> {
     } catch (_) {
       d = null; // unreadable file (e.g. key lost after a restore): start fresh rather than crash
     }
-    // Keep the splash up for about a second so it doesn't flash.
+    // Projects saved before prices were dated start from today, so nothing is flagged straight away.
+    var dated = false;
+    for (final p in d?.projects ?? <Project>[]) {
+      if (p.priceDate == null) {
+        p.priceDate = todayIso();
+        dated = true;
+      }
+    }
+    if (dated && d != null) await _store.save(d);
+    // Keep the splash up for about three seconds.
     final wait = const Duration(milliseconds: 3000) - DateTime.now().difference(started);
     if (wait > Duration.zero && _reminders != null) await Future<void>.delayed(wait);
     state = AppModel(true, d ?? AppData());
