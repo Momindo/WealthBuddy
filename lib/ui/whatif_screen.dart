@@ -66,7 +66,7 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
         final t = targets[p.id];
         if (t != null) p.target = t;
       }
-    });
+    }, why: 'What-if changes kept');
     if (mounted) Navigator.pop(context);
   }
 

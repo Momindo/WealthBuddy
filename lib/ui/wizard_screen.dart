@@ -320,7 +320,12 @@ class _WizardState extends ConsumerState<WizardScreen> {
           d.projects.add(p.copy());
         }
       }
-    });
+    },
+        why: switch (widget.mode) {
+          WizardMode.create => '${p.name} added',
+          WizardMode.edit => '${p.name}: answers changed',
+          WizardMode.money => 'Money answers updated',
+        });
     if (widget.mode == WizardMode.create) {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ResultScreen(projectId: p.id)));
     } else {

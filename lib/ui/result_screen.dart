@@ -1,10 +1,13 @@
 // The answer: verdict, the numbers behind it, the plan in order, and ways to make it work.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
+import '../domain/history.dart';
 import '../domain/impact.dart';
 import '../domain/models.dart';
 import '../domain/whatif.dart';
@@ -54,7 +57,7 @@ class ResultScreen extends ConsumerWidget {
             icon: const Icon(Icons.delete_outline),
             onPressed: () async {
               if (await confirm(context, 'Delete ${p.name}?', 'This removes the project from this phone.', 'Delete')) {
-                ref.read(appProvider.notifier).update((d) => d.removeProject(p.id));
+                ref.read(appProvider.notifier).update((d) => d.removeProject(p.id), why: '${p.name} removed');
                 if (context.mounted) Navigator.pop(context);
               }
             },
@@ -151,6 +154,8 @@ class ResultScreen extends ConsumerWidget {
             for (var n = 0; n < a.steps.length; n++) _StepTile(number: n + 1, step: a.steps[n], last: n == a.steps.length - 1),
           ]),
 
+          if (p.history.length >= 2) HistorySection(project: p, assessment: a),
+
           if (a.options.isNotEmpty)
             Section(title: 'Ways to make it work', children: [
               for (final o in a.options) Padding(padding: const EdgeInsets.only(bottom: 10), child: richBold(context, o)),
@@ -224,7 +229,7 @@ class SplitSection extends ConsumerWidget {
           child: TextButton.icon(
             icon: const Icon(Icons.link),
             label: const Text('Plan it with the others'),
-            onPressed: () => ctl.update((d) => d.setSolo(projectId, false)),
+            onPressed: () => ctl.update((d) => d.setSolo(projectId, false), why: '${p.name} planned with the others'),
           ),
         ),
       ]);
@@ -294,7 +299,7 @@ class SplitSection extends ConsumerWidget {
               }
               final body = changes.isEmpty ? 'Nothing else moves.' : 'Ready dates change:\n${changes.join('\n')}';
               if (await confirm(context, 'Save for ${p.name} now too?', body, 'Save now too')) {
-                ctl.update((d) => d.setPinned(projectId, true));
+                ctl.update((d) => d.setPinned(projectId, true), why: 'Saving for the ${p.name} now too');
               }
             },
           ),
@@ -302,14 +307,14 @@ class SplitSection extends ConsumerWidget {
           TextButton.icon(
             icon: const Icon(Icons.auto_mode),
             label: const Text('Let the plan decide'),
-            onPressed: () => ctl.update((d) => d.setPinned(projectId, false)),
+            onPressed: () => ctl.update((d) => d.setPinned(projectId, false), why: 'The plan decides the order again'),
           ),
         TextButton.icon(
           icon: const Icon(Icons.link_off),
           label: const Text('Plan this on its own'),
           onPressed: () async {
             if (await confirm(context, 'Plan ${p.name} on its own?', 'Its plan will ignore your other projects, so they may count on the same spare money.', 'Plan on its own')) {
-              ctl.update((d) => d.setSolo(projectId, true));
+              ctl.update((d) => d.setSolo(projectId, true), why: '${p.name} planned on its own');
             }
           },
         ),
@@ -436,7 +441,7 @@ class _PriceCheckState extends ConsumerState<PriceCheck> {
                         x.cost = newCost;
                         x.rate = newRate;
                         x.priceDate = today;
-                      });
+                      }, why: '${p.name}: price updated to ${money(newCost)}');
                       setState(() => editing = false);
                     },
               child: const Text('Save price'),
@@ -445,6 +450,121 @@ class _PriceCheckState extends ConsumerState<PriceCheck> {
       ]),
     );
   }
+}
+
+/// How the ready date has moved: a summary since the start, a small chart and each change with its reason.
+class HistorySection extends StatelessWidget {
+  const HistorySection({super.key, required this.project, required this.assessment});
+  final Project project;
+  final Assessment assessment;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final h = project.history;
+    final since = sinceStart(project);
+    final moved = monthsMoved(h.first.ready, h.last.ready);
+    final sooner = moved != null && moved < 0;
+    final setback = !sooner && since != null ? biggestSetback(project) : null;
+    return Section(title: 'How your date has moved', children: [
+      if (since != null)
+        Row(children: [
+          Icon(sooner ? Icons.trending_up : Icons.trending_down, color: toneColor(context, sooner ? Tone.good : Tone.warn)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(since[0].toUpperCase() + since.substring(1), style: t.titleSmall)),
+        ])
+      else
+        note(context, 'Back where you started: ready ${assessment.readyLabel}.'),
+      if (setback != null) Padding(padding: const EdgeInsets.only(top: 4), child: note(context, 'Biggest step back: ${setback.why} (${dayLabel(setback.date)}).')),
+      const SizedBox(height: 10),
+      SizedBox(height: 120, child: CustomPaint(painter: _HistoryPainter(h, project.target, Theme.of(context).colorScheme), size: Size.infinite)),
+      Padding(padding: const EdgeInsets.only(top: 4, bottom: 8), child: note(context, 'Higher is sooner. The dashed line is when you want it.')),
+      for (var i = h.length - 1; i >= 0; i--)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(width: 82, child: Text(dayLabel(h[i].date), style: t.bodySmall)),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(h[i].ready == null ? 'Out of reach' : 'Ready ${monthLabel(h[i].ready!)}', style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(h[i].why, style: t.bodySmall),
+              ]),
+            ),
+            if (i > 0) _moveTag(context, monthsMoved(h[i - 1].ready, h[i].ready), h[i].ready),
+          ]),
+        ),
+    ]);
+  }
+
+  Widget _moveTag(BuildContext context, int? m, String? ready) {
+    if (m == null) return Tag(ready == null ? 'out of reach' : 'within reach', tone: ready == null ? Tone.bad : Tone.good);
+    if (m == 0) return const SizedBox.shrink();
+    return Tag('${m < 0 ? '↑' : '↓'} ${durationLabel(m.abs())} ${m < 0 ? 'sooner' : 'later'}', tone: m < 0 ? Tone.good : Tone.warn);
+  }
+}
+
+/// Ready month over time, as steps. Sooner is higher; the dashed line is the want-by month.
+class _HistoryPainter extends CustomPainter {
+  _HistoryPainter(this.points, this.target, this.cs);
+  final List<HistoryPoint> points;
+  final String target;
+  final ColorScheme cs;
+
+  static int _idx(String ym) => int.parse(ym.substring(0, 4)) * 12 + int.parse(ym.substring(5, 7));
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final known = [for (final p in points) if (p.ready != null) _idx(p.ready!)];
+    if (known.isEmpty) return;
+    final tgt = _idx(target);
+    var lo = [...known, tgt].reduce(math.min), hi = [...known, tgt].reduce(math.max);
+    if (hi == lo) {
+      lo -= 1;
+      hi += 1;
+    }
+    const pad = 8.0;
+    double y(int m) => pad + (m - lo) / (hi - lo) * (size.height - 2 * pad);
+    final n = points.length;
+    double x(int i) => n == 1 ? size.width / 2 : pad + i / (n - 1) * (size.width - 2 * pad);
+
+    // Want-by line
+    final dash = Paint()
+      ..color = cs.outline
+      ..strokeWidth = 1;
+    for (var dx = 0.0; dx < size.width; dx += 8) {
+      canvas.drawLine(Offset(dx, y(tgt)), Offset(math.min(dx + 4, size.width), y(tgt)), dash);
+    }
+
+    final line = Paint()
+      ..color = cs.primary
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+    final dot = Paint()..color = cs.primary;
+    final path = Path();
+    var started = false;
+    double? lastY;
+    for (var i = 0; i < n; i++) {
+      final r = points[i].ready;
+      if (r == null) {
+        started = false;
+        continue;
+      }
+      final px = x(i), py = y(_idx(r));
+      if (!started) {
+        path.moveTo(px, py);
+        started = true;
+      } else {
+        path.lineTo(px, lastY!);
+        path.lineTo(px, py);
+      }
+      lastY = py;
+      canvas.drawCircle(Offset(px, py), 3.5, dot);
+    }
+    canvas.drawPath(path, line);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HistoryPainter old) => old.points != points || old.target != target || old.cs != cs;
 }
 
 /// What the delay costs, line by line.

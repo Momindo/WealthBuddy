@@ -108,6 +108,14 @@ The app never goes online, so it remembers **when each price was last set or con
 
 Within 2 months of buying it always asks for a fresh quote (if the price is more than 2 weeks old). The home card shows "⏱ Price checked 7 months ago"; the plan shows **Is AED 120,000 still right?** with **Still right** (re-dates it) or **Update**, which previews the new ready date and what it does to the other projects before **Save price**. Projects saved before 0.8.0 start from the day of the update.
 
+### Plan history (`lib/domain/history.dart`)
+
+Each project keeps the ready month its plan gave over time, with the reason it moved. A point is added only when the month changes:
+- changes you make carry their reason: "Added AED 25,000 (bonus)", "Wedding added", "Family SUV: price updated to AED 128,000", "What-if changes kept", "Money answers updated"
+- a move found just before a change, or when the app opens, with nothing new entered, is recorded as **"Time passed with the same answers"**, so a slip isn't blamed on the wrong thing
+
+The plan screen shows **How your date has moved**: "3 months sooner since you started" (or later, with the biggest step back named), a step chart (higher is sooner, dashed line = want-by) and every change. Home cards show the same one-liner. Up to 60 points per project; the first is always kept.
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.

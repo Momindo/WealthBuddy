@@ -138,7 +138,7 @@ class _AddMoneySheetState extends ConsumerState<AddMoneySheet> {
               setState(() => err = 'Enter an amount above zero.');
               return;
             }
-            ref.read(appProvider.notifier).update((d) => d.addMoney(p.id, v, source, to, today));
+            ref.read(appProvider.notifier).update((d) => d.addMoney(p.id, v, source, to, today), why: 'Added ${money(v)} (${source.toLowerCase()})');
             final messenger = ScaffoldMessenger.of(context);
             Navigator.pop(context);
             messenger.showSnackBar(SnackBar(content: Text('Added ${money(v)}')));

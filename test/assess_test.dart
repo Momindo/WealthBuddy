@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/domain/assess.dart';
 import 'package:wealth_buddy/domain/format.dart';
+import 'package:wealth_buddy/domain/history.dart';
 import 'package:wealth_buddy/domain/impact.dart';
 import 'package:wealth_buddy/domain/models.dart';
 import 'package:wealth_buddy/domain/reminders.dart';
@@ -416,6 +417,55 @@ void main() {
       expect(p.priceDate, isNull);
       expect(check(p), isNull);
       expect(Project.fromJson((p..priceDate = '2026-03-01').toJson()).priceDate, '2026-03-01');
+    });
+  });
+
+  group('plan history', () {
+    AppData lateHome() => AppData(money: salaried(), projects: [project('home', 900000, 24, pay: 'loan', rate: 4.5, term: 300, rent: 6000)]);
+
+    test('the first point, and nothing new while the date holds', () {
+      final d = lateHome();
+      recordHistory(d, today: today, why: 'x');
+      final h = d.projects.first.history;
+      expect(h.length, 1);
+      expect(h.first.why, 'Started');
+      expect(h.first.ready, '2029-08'); // 34 months from Oct 2026
+      recordHistory(d, today: today, why: 'Nothing changed');
+      expect(h.length, 1);
+      expect(sinceStart(d.projects.first), isNull);
+    });
+
+    test('a bonus moves it sooner, with its reason', () {
+      final d = lateHome();
+      recordHistory(d, today: today, why: 'x');
+      d.addMoney(1, 50000, 'Bonus', 'project', today);
+      recordHistory(d, today: today, why: 'Added AED 50,000 (bonus)');
+      final h = d.projects.first.history;
+      expect(h.length, 2);
+      expect(h.last.why, 'Added AED 50,000 (bonus)');
+      expect(monthsMoved(h.first.ready, h.last.ready)! < 0, isTrue);
+      expect(sinceStart(d.projects.first), contains('sooner since you started'));
+    });
+
+    test('time passing with the same answers is honest about the slip', () {
+      final d = lateHome();
+      recordHistory(d, today: today, why: 'x');
+      recordHistory(d, today: '2026-12-01', why: timePassed);
+      final p = d.projects.first;
+      expect(p.history.last.ready, '2029-10');
+      expect(sinceStart(p), '2 months later since you started');
+      expect(biggestSetback(p)!.why, timePassed);
+    });
+
+    test('history survives a save and reload, and is capped', () {
+      final p = project('car', 60000, 24)
+        ..history = [for (var i = 0; i < 70; i++) HistoryPoint(date: today, ready: inMonths(i), why: 'step $i')];
+      final back = Project.fromJson(p.toJson());
+      expect(back.history.length, 70);
+      final d = AppData(money: salaried(), projects: [back]);
+      recordHistory(d, today: today, why: 'again');
+      expect(d.projects.first.history.length, historyCap);
+      expect(d.projects.first.history.first.why, 'step 0'); // the start is kept
     });
   });
 

@@ -58,6 +58,19 @@ class Contribution {
   Map<String, dynamic> toJson() => {'amount': amount, 'source': source, 'date': date, 'to': to};
 }
 
+/// One point in a project's history: on [date] the plan said it would be ready in [ready] (yyyy-mm, null = out of reach).
+class HistoryPoint {
+  final String date; // yyyy-mm-dd
+  final String? ready;
+  final String why;
+  const HistoryPoint({required this.date, required this.ready, required this.why});
+
+  factory HistoryPoint.fromJson(Map<String, dynamic> j) =>
+      HistoryPoint(date: j['date'] as String, ready: j['ready'] as String?, why: (j['why'] as String?) ?? '');
+
+  Map<String, dynamic> toJson() => {'date': date, 'ready': ready, 'why': why};
+}
+
 /// Something the user wants to afford.
 class Project {
   int id;
@@ -72,10 +85,12 @@ class Project {
   double? rent; // homes only: rent paid today, which stops after buying
   String? priceDate; // yyyy-mm-dd the cost (and loan rate) were last set or confirmed
   List<Contribution> contributions;
+  List<HistoryPoint> history; // how the ready date has moved
 
   Project({required this.id, required this.type, required this.name, required this.cost, required this.target, this.pay = 'savings',
-      this.downPct = 20, this.rate = 0, this.term = 48, this.rent, this.priceDate, List<Contribution>? contributions})
-      : contributions = contributions ?? [];
+      this.downPct = 20, this.rate = 0, this.term = 48, this.rent, this.priceDate, List<Contribution>? contributions, List<HistoryPoint>? history})
+      : contributions = contributions ?? [],
+        history = history ?? [];
 
   /// Money held for this project (set aside at the start plus anything added to it).
   double get saved => contributions.where((c) => c.to == 'project').fold<double>(0, (a, c) => a + c.amount);
@@ -93,11 +108,12 @@ class Project {
         rent: _dn(j['rent']),
         priceDate: j['priceDate'] as String?,
         contributions: ((j['contributions'] as List?) ?? []).map((e) => Contribution.fromJson((e as Map).cast<String, dynamic>())).toList(),
+        history: ((j['history'] as List?) ?? []).map((e) => HistoryPoint.fromJson((e as Map).cast<String, dynamic>())).toList(),
       );
 
   Map<String, dynamic> toJson() =>
       {'id': id, 'type': type, 'name': name, 'cost': cost, 'target': target, 'pay': pay, 'downPct': downPct, 'rate': rate, 'term': term, 'rent': rent, 'priceDate': priceDate,
-        'contributions': contributions.map((c) => c.toJson()).toList()};
+        'contributions': contributions.map((c) => c.toJson()).toList(), 'history': history.map((h) => h.toJson()).toList()};
 
   Project copy() => Project.fromJson(toJson());
 }

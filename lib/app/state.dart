@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/encrypted_store.dart';
 import '../domain/format.dart';
+import '../domain/history.dart';
 import '../domain/models.dart';
 import '../services/lock_service.dart';
 import '../services/reminder_service.dart';
@@ -37,6 +38,11 @@ class AppController extends StateNotifier<AppModel> {
         dated = true;
       }
     }
+    // Every project gets a first history point, so later moves have something to compare with.
+    if (d != null && d.projects.any((p) => p.history.isEmpty)) {
+      recordHistory(d, today: todayIso(), why: timePassed, first: 'Plan as of ${dayLabel(todayIso())}');
+      dated = true;
+    }
     if (dated && d != null) await _store.save(d);
     // Keep the splash up for about three seconds.
     final wait = const Duration(milliseconds: 3000) - DateTime.now().difference(started);
@@ -46,9 +52,14 @@ class AppController extends StateNotifier<AppModel> {
   }
 
   /// Every change: copy, change, publish, save, refresh reminders.
-  void update(void Function(AppData d) change) {
+  /// [why] marks a change that can move ready dates; it's recorded in each project's history when it does.
+  /// Any move found just before the change is put down to time passing.
+  void update(void Function(AppData d) change, {String? why}) {
     final next = state.data.copy();
+    final today = todayIso();
+    if (why != null) recordHistory(next, today: today, why: timePassed);
     change(next);
+    if (why != null) recordHistory(next, today: today, why: why);
     state = AppModel(true, next);
     _store.save(next);
     _reminders?.reschedule(next);

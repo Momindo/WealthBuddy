@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
+import '../domain/history.dart';
 import 'add_money_sheet.dart';
 import 'logo.dart';
 import 'settings_screen.dart';
@@ -80,6 +81,7 @@ class HomeScreen extends ConsumerWidget {
                 final sh = a?.share;
                 final stale = a == null ? null : staleness(p, a, today: today);
                 return ProjectCard(
+                  moveNote: sinceStart(p),
                   staleNote: stale == null ? null : '⏱ ${stale.chip}',
                   planNote: sh == null || a!.readyIn == 0
                       ? null
@@ -110,11 +112,12 @@ class HomeScreen extends ConsumerWidget {
 
 /// A project on the home screen: verdict, progress toward the upfront amount, ready date, and Add money.
 class ProjectCard extends StatelessWidget {
-  const ProjectCard({super.key, this.planNote, this.staleNote, required this.projectName, required this.type, required this.assessment, required this.saved, required this.cost,
+  const ProjectCard({super.key, this.planNote, this.staleNote, this.moveNote, required this.projectName, required this.type, required this.assessment, required this.saved, required this.cost,
       required this.wanted, required this.onOpen, required this.onAdd});
   final String projectName, type, wanted;
   final String? planNote; // saving now / waiting, when planned with other projects
   final String? staleNote; // the price is worth checking again
+  final String? moveNote; // how far the ready date has moved since the start
   final Assessment? assessment;
   final double saved, cost;
   final VoidCallback onOpen, onAdd;
@@ -150,6 +153,14 @@ class ProjectCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text('${money(saved)} of ${money(goal)} set aside${a != null && a.loan ? ' (down payment)' : ''}', style: t.bodySmall),
             Text(a == null ? 'Wanted by $wanted' : 'Ready ${a.readyLabel == 'Now' ? 'now' : a.readyLabel} · wanted by $wanted', style: t.bodySmall),
+            if (moveNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Builder(builder: (context) {
+                  final good = moveNote!.contains('sooner') || moveNote!.startsWith('Within');
+                  return Text('${good ? '↑' : '↓'} $moveNote', style: t.bodySmall?.copyWith(color: toneColor(context, good ? Tone.good : Tone.warn)));
+                }),
+              ),
             if (staleNote != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
