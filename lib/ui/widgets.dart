@@ -32,8 +32,9 @@ Color toneColor(BuildContext c, Tone t) {
   };
 }
 
-Tone verdictTone(String v) => switch (v) { 'ready' || 'onTrack' => Tone.good, 'later' => Tone.warn, 'rethink' => Tone.bad, _ => Tone.plain };
-String verdictLabel(String v) => switch (v) { 'ready' => 'Ready now', 'onTrack' => 'On track', 'later' => 'Later', 'rethink' => 'Rethink', _ => '' };
+Tone verdictTone(String v) => switch (v) { 'ready' || 'onTrack' => Tone.good, 'later' || 'tight' => Tone.warn, 'rethink' => Tone.bad, _ => Tone.plain };
+String verdictLabel(String v) =>
+    switch (v) { 'ready' => 'Ready now', 'onTrack' => 'On track', 'tight' => 'Yes, but tight', 'later' => 'Later', 'rethink' => 'Rethink', _ => '' };
 
 IconData kindIcon(String type) => switch (type) {
       'car' => Icons.directions_car_outlined,

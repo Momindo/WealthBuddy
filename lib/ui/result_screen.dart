@@ -79,6 +79,17 @@ class ResultScreen extends ConsumerWidget {
               Text(a.headline, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
               Text(a.summary, style: t.bodyMedium),
+              if (a.wait != null) _WaitBox(wait: a.wait!),
+              // The regret check: every line when it's tight, otherwise just the one that doesn't pass.
+              for (final ch in a.checks.where((c) => a.verdict == 'tight' || !c.ok))
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(ch.ok ? Icons.check_circle_outline : Icons.warning_amber_rounded, size: 18, color: toneColor(context, ch.ok ? Tone.good : Tone.warn)),
+                    const SizedBox(width: 8),
+                    Expanded(child: richBold(context, '**${ch.label}.** ${ch.detail}')),
+                  ]),
+                ),
             ]),
           ),
 
@@ -294,6 +305,33 @@ class SplitSection extends ConsumerWidget {
         ),
       ]),
     ]);
+  }
+}
+
+/// What the delay costs, line by line.
+class _WaitBox extends StatelessWidget {
+  const _WaitBox({required this.wait});
+  final WaitCost wait;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    String signed(double v) => '${v < 0 ? '−' : '+'}${fmt(v.abs())}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        for (final (label, amount) in wait.lines)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(children: [Expanded(child: Text(label, style: t.bodySmall)), Text(signed(amount), style: t.bodySmall)]),
+          ),
+        const Divider(height: 10),
+        Row(children: [
+          Expanded(child: Text(wait.saves ? 'Waiting saves you' : 'Waiting costs you', style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700))),
+          Text('${money(wait.total.abs())} · ${money(wait.perMonth.abs())} a month', style: t.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+        ]),
+      ]),
+    );
   }
 }
 

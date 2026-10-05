@@ -263,6 +263,37 @@ void main() {
     });
   });
 
+  group('cost of waiting and regret check', () {
+    test('a late home: rent still paid and prices rising, minus owning costs', () {
+      final a = assess(salaried(), project('home', 900000, 24, pay: 'loan', rate: 4.5, term: 300, rent: 6000), today: today);
+      expect(a.verdict, 'later');
+      expect(a.wait!.perMonth, closeTo(6000 - (2700 + 1125) + 2250, 1)); // rent - (interest + upkeep) + 3% a year on 900,000
+      expect(a.summary, contains('Waiting costs about'));
+    });
+
+    test('waiting on a car saves money', () {
+      final a = assess(salaried(), project('car', 120000, 12), today: today);
+      expect(a.verdict, 'later');
+      expect(a.wait!.saves, isTrue);
+      expect(a.summary, contains('isn\'t costing you money'));
+    });
+
+    test('an SUV on a loan that leaves you stretched: yes, but tight', () {
+      final a = assess(salaried(spending: 15000), project('car', 150000, 24, pay: 'loan'), today: today);
+      expect(a.verdict, 'tight');
+      expect(a.checks.where((c) => !c.ok).map((c) => c.label), containsAll(['Cushion still covers you', 'Room to breathe']));
+      expect(a.checks.firstWhere((c) => c.label == 'Loans comfortable').ok, isTrue);
+      expect(a.options.any((o) => o.contains('AED 105,000 passes every check')), isTrue);
+      expect(a.paced, isTrue); // still saves to its date
+    });
+
+    test('one warning keeps the verdict', () {
+      final a = assess(salaried(spending: 8000, repayments: 6000), project('car', 60000, 24, pay: 'loan'), today: today);
+      expect(a.verdict, 'onTrack');
+      expect(a.checks.where((c) => !c.ok).map((c) => c.label), ['Loans comfortable']);
+    });
+  });
+
   test('car loans: 0% and 5 years', () {
     expect(instalment(60000, 0, 60), 1000);
     final a = assess(salaried(savings: 100000), project('car', 75000, 12, pay: 'loan', rate: 0, term: 60), today: today);

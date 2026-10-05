@@ -24,6 +24,7 @@ class ProjectKind {
   final List<int> terms;
   final List<double> rateChips; // quick picks for the loan rate
   final String costTitle; // overrides "How much will the {noun} cost?"
+  final double priceRise; // % a year the price tends to rise, for the cost of waiting
   const ProjectKind({
     required this.label,
     required this.noun,
@@ -40,6 +41,7 @@ class ProjectKind {
     this.terms = const [12, 24, 36, 48],
     this.rateChips = const [],
     this.costTitle = '',
+    this.priceRise = 0,
   });
 }
 
@@ -51,15 +53,15 @@ const Map<String, ProjectKind> kinds = {
       terms: [12, 24, 36, 48, 60], rateChips: [0, 2.5, 3.5, 4.5]),
   'home': ProjectKind(
       label: 'Home', noun: 'home', buyTitle: 'Buy the home', costHint: 'The property price. Transfer and agent fees are added for you.',
-      canFinance: true, loanName: 'mortgage', minDown: 20, fees: 6, rate: 4.5, term: 300, maxTerm: 300, runPctYear: 1.5, terms: [120, 180, 240, 300], rateChips: [3.5, 4.5, 5.5]),
-  'build': ProjectKind(label: 'Build a house', noun: 'house', buyTitle: 'Start building', costHint: 'Land and construction together.'),
-  'vacation': ProjectKind(label: 'Vacation', noun: 'trip', buyTitle: 'Book the trip', costHint: 'Flights, hotels and spending money.'),
-  'wedding': ProjectKind(label: 'Wedding', noun: 'wedding', buyTitle: 'Pay for the wedding', costHint: 'Venue, catering, gifts, everything.'),
-  'education': ProjectKind(label: 'Education', noun: 'studies', buyTitle: 'Pay the fees', costHint: 'Tuition, plus books and living costs if any.'),
+      canFinance: true, loanName: 'mortgage', minDown: 20, fees: 6, rate: 4.5, term: 300, maxTerm: 300, runPctYear: 1.5, terms: [120, 180, 240, 300], rateChips: [3.5, 4.5, 5.5], priceRise: 3),
+  'build': ProjectKind(label: 'Build a house', noun: 'house', buyTitle: 'Start building', costHint: 'Land and construction together.', priceRise: 3),
+  'vacation': ProjectKind(label: 'Vacation', noun: 'trip', buyTitle: 'Book the trip', costHint: 'Flights, hotels and spending money.', priceRise: 4),
+  'wedding': ProjectKind(label: 'Wedding', noun: 'wedding', buyTitle: 'Pay for the wedding', costHint: 'Venue, catering, gifts, everything.', priceRise: 4),
+  'education': ProjectKind(label: 'Education', noun: 'studies', buyTitle: 'Pay the fees', costHint: 'Tuition, plus books and living costs if any.', priceRise: 5),
   'renovation': ProjectKind(
       label: 'Home renovation', noun: 'renovation', buyTitle: 'Start the work', costHint: 'Contractor quote, materials, and about 10% for surprises.',
-      canFinance: true, loanName: 'personal loan', rate: 7, term: 36, maxTerm: 48, rateChips: [5, 7, 9]),
-  'hajj': ProjectKind(label: 'Hajj or Umrah', noun: 'pilgrimage', buyTitle: 'Book the package', costHint: 'Package, flights and spending money for everyone going.'),
+      canFinance: true, loanName: 'personal loan', rate: 7, term: 36, maxTerm: 48, rateChips: [5, 7, 9], priceRise: 3),
+  'hajj': ProjectKind(label: 'Hajj or Umrah', noun: 'pilgrimage', buyTitle: 'Book the package', costHint: 'Package, flights and spending money for everyone going.', priceRise: 4),
   'business': ProjectKind(
       label: 'Start a business', noun: 'business', buyTitle: 'Launch it', costTitle: 'How much do you need to start?',
       costHint: 'Trade licence, visa, office or desk, stock, and a few months of running costs.'),
@@ -124,6 +126,44 @@ class PlanStep {
   const PlanStep(this.title, this.body, {this.when = '', this.done = false});
 }
 
+/// One line of the regret check: how things look the month after buying.
+class Check {
+  final String label, detail;
+  final bool ok;
+  const Check(this.label, this.ok, this.detail);
+}
+
+/// What being later than wanted costs, line by line. Positive costs you money, negative saves it.
+class WaitCost {
+  final int months;
+  final List<(String, double)> lines;
+  const WaitCost(this.months, this.lines);
+  double get total => lines.fold<double>(0, (a, l) => a + l.$2);
+  double get perMonth => total / months;
+  bool get saves => total < 0;
+  String get sentence => saves
+      ? 'Waiting isn\'t costing you money: it saves about ${money(roundDown(-total, 100))}.'
+      : 'Waiting costs about ${money(roundUp(total, 100))}, roughly ${money(roundUp(perMonth, 50))} a month of delay.';
+}
+
+/// The cost of buying [months] later: rent still paid, owning or running costs not yet paid, and prices rising.
+WaitCost? waitCost(Project p, int months, {required bool loan, required double principal, required double running, required double rentSaved}) {
+  if (months <= 0) return null;
+  final k = kindOf(p.type);
+  final lines = <(String, double)>[];
+  if (rentSaved > 0) lines.add(('Rent you keep paying', rentSaved * months));
+  if (p.type == 'home') {
+    final owning = (loan ? principal * p.rate / 1200 : 0) + running;
+    if (owning > 0) lines.add(('Owning costs you don\'t pay yet (${loan ? 'interest, ' : ''}upkeep)', -owning * months));
+  } else if (running > 0) {
+    lines.add(('Running costs you don\'t pay yet', -running * months));
+  }
+  if (k.priceRise > 0) lines.add(('Price rise at ${num1(k.priceRise)}% a year', p.cost * k.priceRise / 100 * months / 12));
+  return lines.isEmpty ? null : WaitCost(months, lines);
+}
+
+double _pathAt(List<double> l, int i) => l.isEmpty ? 0 : l[math.min(math.max(i, 0), l.length - 1)];
+
 class Assessment {
   final String verdict; // ready | onTrack | later | rethink
   final String headline, summary;
@@ -144,6 +184,8 @@ class Assessment {
   final int startsAt; // month its turn starts in a plan with other projects (0 = saving now)
   final String? after; // projects it waits for, in a plan with other projects
   final Sched? share; // its share of the plan when planned with other projects
+  final WaitCost? wait; // when it's later than wanted: what the delay costs
+  final List<Check> checks; // regret check, when it's ready or on track
   final double? dbr; // loan repayments as % of take-home after buying
   final String targetLabel, readyLabel;
   final List<PlanStep> steps;
@@ -183,6 +225,8 @@ class Assessment {
     required this.startsAt,
     required this.after,
     required this.share,
+    required this.wait,
+    required this.checks,
     required this.dbr,
     required this.targetLabel,
     required this.readyLabel,
@@ -259,7 +303,9 @@ _Sim _simulate({
 
 /// [sh]: when the project is planned together with others, its share of that plan (see plan.dart).
 /// Dates, monthly amounts and the cushion then come from the shared plan instead of this project alone.
-Assessment assess(Money money0, Project p, {required String today, Sched? sh}) {
+/// [othersLate]: other projects in the plan that miss their dates and come no earlier than this one.
+/// [explore]: look for a price or down payment that passes every check (off for those look-ups themselves).
+Assessment assess(Money money0, Project p, {required String today, Sched? sh, List<String> othersLate = const [], bool explore = true}) {
   final k = kindOf(p.type);
   final income = money0.income ?? 0;
   // In a plan, a waiting project counts the costs of the projects bought before it as essentials.
@@ -376,6 +422,10 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh}) {
     final late = readyIn - monthsLeft;
     summary = 'That\'s ${durationLabel(late)} later than you wanted. Below are ways to keep your date.';
   }
+
+  // Cost of waiting, when it's later than wanted
+  final wait = verdict == 'later' ? waitCost(p, readyIn! - monthsLeft, loan: loan, principal: principal, running: running, rentSaved: rentSaved) : null;
+  if (wait != null) summary += ' ${wait.sentence}';
 
   // Pace: on track means saving just enough to hit the target; otherwise everything spare.
   // In a plan with other projects, the plan sets the amounts.
@@ -500,8 +550,60 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh}) {
     }
   }
 
+  // ---------- Regret check: the month after buying ----------
+  final checks = <Check>[];
+  if ((verdict == 'ready' || verdict == 'onTrack') && (emi > 0 || running > 0 || rentSaved > 0 || sh != null)) {
+    final buyMonth = sh?.buyIn ?? (paced ? monthsLeft : readyIn!);
+    final newEss = spendAtBuy + repAtBuy + emi + running - rentSaved;
+    final cover = newEss > 0 ? (_pathAt(efPath, buyMonth) / newEss * 10).floorToDouble() / 10 : 99.0;
+    final coverOk = cover >= efMonths - 0.5;
+    final costUp = emi + running - rentSaved;
+    checks.add(Check(
+        'Cushion still covers you',
+        coverOk,
+        coverOk
+            ? 'It covers ${num1(math.min(cover, 99))} months at your new monthly costs.'
+            : 'It would cover ${num1(cover)} months, not $efMonths${costUp > 0.5 ? ', because ${loan ? 'the ${k.loanName} and ' : ''}running costs add ${money(costUp)} a month' : ''}, until you top it up.'));
+    final roomOk = afterSurplus >= income * 0.1;
+    checks.add(Check('Room to breathe', roomOk,
+        'Spare each month ${roomOk ? 'stays at' : 'drops to'} ${money(afterSurplus)} (${(afterSurplus / income * 100).floor()}% of your pay).'));
+    if (dbr != null) {
+      checks.add(Check('Loans comfortable', dbr <= 35,
+          'Loan repayments ${dbr.toStringAsFixed(0)}% of your pay${dbr > 35 ? '. Banks allow 50%, but above 35% leaves little room if costs rise' : ''}.'));
+    }
+    if (sh != null) {
+      checks.add(Check('Other plans hold', othersLate.isEmpty,
+          othersLate.isEmpty ? 'Your other projects keep their dates.' : 'The ${joinNames(othersLate)} ${othersLate.length == 1 ? 'misses its' : 'miss their'} date.'));
+    }
+    if (checks.where((c) => !c.ok).length >= 2) {
+      verdict = 'tight';
+      headline = buyMonth <= 0 ? 'You can afford it now, but think twice' : 'You can buy it by ${at(buyMonth)}, but think twice';
+      summary = 'The month after, you\'d be stretched.';
+    }
+  }
+
   // ---------- Ways to make it work ----------
   final options = <String>[];
+  if (verdict == 'tight' && explore) {
+    bool passes(Assessment x) => (x.verdict == 'ready' || x.verdict == 'onTrack') && x.checks.every((c) => c.ok);
+    final step = p.cost >= 100000 ? 5000.0 : (p.cost >= 10000 ? 1000.0 : 100.0);
+    for (var c = roundDown(p.cost * 0.95, step); c >= p.cost * 0.5; c -= step) {
+      final x = assess(money0, p.copy()..cost = c, today: today, explore: false);
+      if (passes(x)) {
+        options.add('**A ${k.noun} around ${money(c)} passes every check.** You\'d keep ${money(x.afterSurplus)} spare a month.');
+        break;
+      }
+    }
+    if (loan) {
+      for (var d = (down / 5).floor() * 5 + 5.0; d <= 50; d += 5) {
+        final x = assess(money0, p.copy()..downPct = d, today: today, explore: false);
+        if (x.verdict == 'ready' || x.verdict == 'onTrack') {
+          options.add('**Put ${num1(d)}% down instead of ${num1(down)}%.** Spare each month goes up to ${money(x.afterSurplus)}${x.readyIn! > (readyIn ?? 0) ? ', ready ${x.readyLabel}' : ''}.');
+          break;
+        }
+      }
+    }
+  }
   if (verdict == 'later' || verdict == 'rethink') {
     if (surplus <= 0) {
       options.add('**Cut a regular cost.** Moving somewhere cheaper, refinancing a loan or dropping a second car frees money every month.');
@@ -519,7 +621,9 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh}) {
       }
       final shortfall = upfront - potByTarget;
       if (shortfall > 0 && verdict == 'later') {
-        options.add('**Find ${money(roundUp(shortfall / math.max(1, monthsLeft - off), 50))} more a month.** Together with what you already save, that gets you there by $targetLabel.');
+        final extra = roundUp(shortfall / math.max(1, monthsLeft - off), 50);
+        options.add('**Find ${money(extra)} more a month.** Together with what you already save, that gets you there by $targetLabel.'
+            '${wait != null && !wait.saves && wait.perMonth > extra ? ' That\'s less than the ${money(roundUp(wait.perMonth, 50))} a month that waiting costs.' : ''}');
       }
       if (k.canFinance && !loan && k.minDown > 0) {
         final up2 = p.cost * (k.minDown + k.fees) / 100, emi2 = instalment(p.cost * (1 - k.minDown / 100), k.rate, k.term);
@@ -560,10 +664,10 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh}) {
 
   // ---------- Good to know ----------
   final watch = <String>[];
-  if (dbr != null && dbr > 35 && dbr <= 50) {
+  if (checks.isEmpty && dbr != null && dbr > 35 && dbr <= 50) {
     watch.add('Loan repayments would reach ${dbr.toStringAsFixed(0)}% of your pay. Banks allow up to 50%, but above 35% leaves little room if costs rise.');
   }
-  if (afterSurplus >= 0 && afterSurplus < income * 0.1 && (emi > 0 || running > 0)) {
+  if (checks.isEmpty && afterSurplus >= 0 && afterSurplus < income * 0.1 && (emi > 0 || running > 0)) {
     watch.add('After buying you\'d have only ${money(afterSurplus)} spare a month.');
   }
   if (small) watch.add('Counted as a small purchase because it costs less than one month of your take-home pay.');
@@ -632,6 +736,8 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh}) {
     startsAt: off,
     after: sh?.after,
     share: sh,
+    wait: wait,
+    checks: checks,
     dbr: dbr,
     targetLabel: targetLabel,
     readyLabel: readyIn == null ? 'Not within 30 years' : (readyIn == 0 ? 'Now' : at(readyIn)),
@@ -649,7 +755,21 @@ String joinNames(List<String> names) =>
 Map<int, Assessment> assessAll(AppData d, {required String today}) {
   final together = d.plannedProjects();
   final plan = together.isEmpty ? null : planAll(d.money, together, today: today, pinned: d.pinned.toSet());
-  return {for (final p in d.projects) p.id: assess(d.money, p, today: today, sh: plan?[p.id])};
+  if (plan == null) return {for (final p in d.projects) p.id: assess(d.money, p, today: today)};
+  bool isLate(Project p) {
+    final s = plan[p.id]!;
+    return s.readyIn == null || s.readyIn! > math.max(1, monthsUntil(today, p.target));
+  }
+
+  return {
+    for (final p in d.projects)
+      p.id: plan[p.id] == null
+          ? assess(d.money, p, today: today)
+          : assess(d.money, p, today: today, sh: plan[p.id], othersLate: [
+              for (final o in together)
+                if (o.id != p.id && plan[p.id]!.turn <= plan[o.id]!.turn && isLate(o)) o.name,
+            ]),
+  };
 }
 
 /// The plan for one project as the app shows it.

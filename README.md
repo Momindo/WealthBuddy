@@ -66,6 +66,20 @@ On the plan screen, **How your spare money is split** shows who's saving now and
 
 Home cards say *Saving now · AED 6,180 a month* or *Waiting · starts Jun 2028*. Payday reminders split the money: "Put AED 1,250 for the vacation and AED 6,180 for the Family SUV today."
 
+### Cost of waiting and the regret check
+
+- **Cost of waiting** (when the verdict is *Later*): the delay is costed line by line in the verdict card. A home counts the rent you keep paying, minus the interest and upkeep you'd pay as an owner, plus the price rising. Trips, weddings, Hajj and education count price rises. A car's running costs make waiting a saving. "Find AED 1,200 more a month" says when that's less than what each month of waiting costs.
+- **Regret check** (when the verdict is *Ready now* or *On track*), looking at the month after buying:
+
+  | Check | Passes when |
+  |---|---|
+  | Cushion still covers you | it covers its months (less half a month) at the new monthly costs |
+  | Room to breathe | at least 10% of pay is still spare |
+  | Loans comfortable | repayments at or under 35% of pay |
+  | Other plans hold | projects planned with it, no earlier than it, keep their dates |
+
+  Two or more warnings make the verdict **Yes, but tight**, with a price that passes every check and a bigger down payment if one helps. One warning keeps the verdict and shows that line under it.
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.
@@ -118,3 +132,5 @@ test/
 | Home upkeep | 1.5% of the price a year |
 | Card interest | 36% a year |
 | Small-purchase threshold | One month of take-home pay |
+| Price rises (cost of waiting) | Homes, building, renovation 3% a year; trips, weddings, Hajj 4%; education 5% |
+| Regret check | Spare after buying ≥ 10% of pay; repayments ≤ 35%; cushion within half a month of its target |
