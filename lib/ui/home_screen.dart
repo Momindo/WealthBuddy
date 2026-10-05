@@ -13,6 +13,7 @@ import 'check_in_sheet.dart';
 import 'logo.dart';
 import 'settings_screen.dart';
 import 'result_screen.dart';
+import 'timeline_screen.dart';
 import 'whatif_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
@@ -52,6 +53,12 @@ class HomeScreen extends ConsumerWidget {
             PaydayCard(today: today),
             Row(children: [
               Expanded(child: Text('Your projects', style: t.titleMedium)),
+              if (data.money.complete)
+                IconButton(
+                  tooltip: 'Timeline',
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TimelineScreen())),
+                  icon: const Icon(Icons.view_timeline_outlined),
+                ),
               if (data.money.complete)
                 TextButton.icon(
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatIfScreen())),
@@ -224,7 +231,7 @@ class PaydayCard extends ConsumerWidget {
             if (due) TextButton(onPressed: () => showCheckIn(context), child: const Text('Check in')),
             if (isToday)
               FilledButton.tonal(
-                onPressed: () => ref.read(appProvider.notifier).update((d) => d.settings.paydayDone = r!.date),
+                onPressed: () => ref.read(appProvider.notifier).update((d) => d.settings.paydayDone = r.date),
                 child: const Text('Done ✓'),
               ),
           ]),

@@ -63,7 +63,7 @@ class _TourScreenState extends State<TourScreen> {
               itemBuilder: (context, i) => SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  SizedBox(height: 260, child: Center(child: _illustration(i))),
+                  SizedBox(height: 260, child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: _illustration(i)))),
                   const SizedBox(height: 24),
                   Text(_cards[i].$1, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
@@ -145,7 +145,7 @@ class _AffordArt extends StatelessWidget {
             child: Row(children: [
               CircleAvatar(radius: 10, backgroundColor: cs.primary, child: Text('$n', style: TextStyle(fontSize: 11, color: cs.onPrimary))),
               const SizedBox(width: 8),
-              Text(s, style: t.bodyMedium),
+              Flexible(child: Text(s, style: t.bodyMedium)),
             ]),
           ),
       ]),

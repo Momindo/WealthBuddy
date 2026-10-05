@@ -16,12 +16,19 @@ import 'whatif_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
-class ResultScreen extends ConsumerWidget {
+class ResultScreen extends ConsumerStatefulWidget {
   const ResultScreen({super.key, required this.projectId});
   final int projectId;
+  @override
+  ConsumerState<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends ConsumerState<ResultScreen> {
+  int tab = 0; // 0 Plan, 1 Money, 2 More
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final projectId = widget.projectId;
     final data = ref.watch(appProvider).data;
     final matches = data.projects.where((x) => x.id == projectId);
     if (matches.isEmpty) return Scaffold(appBar: AppBar(), body: const Center(child: Text('This project was removed.')));
@@ -82,11 +89,19 @@ class ResultScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: c.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(14), border: Border.all(color: c.withValues(alpha: 0.5))),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Tag(verdictLabel(a.verdict), tone: tone),
-              const SizedBox(height: 8),
-              Text(a.headline, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-              if (whyNotYet(a, today: todayIso()) != null)
-                Padding(padding: const EdgeInsets.only(top: 4), child: Text(whyNotYet(a, today: todayIso())!, style: t.titleSmall?.copyWith(color: c))),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _ProgressRing(value: a.upfront > 0 ? (a.earmarked / a.upfront).clamp(0, 1).toDouble() : 0, color: c),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Tag(verdictLabel(a.verdict), tone: tone),
+                    const SizedBox(height: 6),
+                    Text(a.headline, style: t.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    if (whyNotYet(a, today: todayIso()) != null)
+                      Padding(padding: const EdgeInsets.only(top: 4), child: Text(whyNotYet(a, today: todayIso())!, style: t.titleSmall?.copyWith(color: c))),
+                  ]),
+                ),
+              ]),
               const SizedBox(height: 6),
               Text(a.summary, style: t.bodyMedium),
               if (a.wait != null) _WaitBox(wait: a.wait!),
@@ -103,8 +118,39 @@ class ResultScreen extends ConsumerWidget {
             ]),
           ),
 
-          if (data.projects.length >= 2) SplitSection(projectId: p.id),
+          SegmentedButton<int>(
+            segments: const [
+              ButtonSegment(value: 0, label: Text('Plan'), icon: Icon(Icons.checklist)),
+              ButtonSegment(value: 1, label: Text('Money'), icon: Icon(Icons.savings_outlined)),
+              ButtonSegment(value: 2, label: Text('More'), icon: Icon(Icons.more_horiz)),
+            ],
+            selected: {tab},
+            showSelectedIcon: false,
+            onSelectionChanged: (v) => setState(() => tab = v.first),
+          ),
 
+          if (tab == 0) ...[
+          // The plan, in order
+          Section(title: 'Your plan', children: [
+            for (var n = 0; n < a.steps.length; n++) _StepTile(number: n + 1, step: a.steps[n], last: n == a.steps.length - 1),
+          ]),
+          if (a.options.isNotEmpty)
+            Section(title: 'Ways to make it work', children: [
+              for (final o in a.options) Padding(padding: const EdgeInsets.only(bottom: 10), child: richBold(context, o)),
+            ]),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatIfScreen())),
+            icon: const Icon(Icons.tune),
+            label: const Text('What if…'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WizardScreen.edit(p.id))),
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Change answers'),
+          ),
+          ],
+
+          if (tab == 1) ...[
           // Money set aside
           Section(title: 'Money set aside', children: [
             Row2('For this project', '${money(a.earmarked)} of ${money(a.upfront)}', bold: true),
@@ -148,7 +194,7 @@ class ResultScreen extends ConsumerWidget {
               child: TextButton.icon(onPressed: () => showAddMoney(context, p.id), icon: const Icon(Icons.add), label: const Text('Add money')),
             ),
           ]),
-
+          if (data.projects.length >= 2) SplitSection(projectId: p.id),
           // The numbers behind it
           Section(title: 'The numbers', children: [
             Row2('Spare each month', money(a.surplus), tone: a.surplus > 0 ? null : Tone.bad),
@@ -160,19 +206,10 @@ class ResultScreen extends ConsumerWidget {
             if (a.emi > 0 || a.running > 0) Row2('Spare after buying', '${money(a.afterSurplus)} / month', tone: a.afterSurplus < 0 ? Tone.bad : null),
             Row2('Could be ready', a.readyLabel, bold: true),
           ]),
+          ],
 
-          // The plan, in order
-          Section(title: 'Your plan', children: [
-            for (var n = 0; n < a.steps.length; n++) _StepTile(number: n + 1, step: a.steps[n], last: n == a.steps.length - 1),
-          ]),
-
+          if (tab == 2) ...[
           if (p.history.length >= 2) HistorySection(project: p, assessment: a),
-
-          if (a.options.isNotEmpty)
-            Section(title: 'Ways to make it work', children: [
-              for (final o in a.options) Padding(padding: const EdgeInsets.only(bottom: 10), child: richBold(context, o)),
-            ]),
-
           if (a.watchouts.isNotEmpty)
             Section(title: 'Good to know', children: [
               for (final w in a.watchouts)
@@ -183,25 +220,38 @@ class ResultScreen extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Expanded(child: Text(w, style: t.bodyMedium)),
                   ]),
-                ),
-            ]),
+            if (p.history.length < 2 && a.watchouts.isEmpty) note(context, 'Nothing more for now. Changes to your ready date will show here.'),
+          ],
 
-          OutlinedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatIfScreen())),
-            icon: const Icon(Icons.tune),
-            label: const Text('What if…'),
-          ),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WizardScreen.edit(p.id))),
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Change answers'),
-          ),
           note(context,
               'Guidance from fixed rules for planning, not financial advice. Lending rules and costs are estimates; check them with your bank before you commit.'),
         ]),
       ),
     );
   }
+}
+
+/// How much of the upfront amount is held, as a ring with the percentage inside.
+class _ProgressRing extends StatelessWidget {
+  const _ProgressRing({required this.value, required this.color});
+  final double value;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: '${(value * 100).floor()}% saved',
+        child: SizedBox(
+          width: 64,
+          height: 64,
+          child: Stack(alignment: Alignment.center, children: [
+            SizedBox(
+              width: 64,
+              height: 64,
+              child: CircularProgressIndicator(value: value, strokeWidth: 7, color: color, backgroundColor: Theme.of(context).colorScheme.outlineVariant),
+            ),
+            Text('${(value * 100).floor()}%', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      );
 }
 
 /// "On time", "3 months early", "2 months late", or why there's no date.
