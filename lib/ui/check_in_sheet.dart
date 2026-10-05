@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/state.dart';
-import '../domain/assess.dart';
 import '../domain/checkin.dart';
 import '../domain/format.dart';
 import 'widgets.dart';
