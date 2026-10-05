@@ -116,6 +116,19 @@ Each project keeps the ready month its plan gave over time, with the reason it m
 
 The plan screen shows **How your date has moved**: "3 months sooner since you started" (or later, with the biggest step back named), a step chart (higher is sooner, dashed line = want-by) and every change. Home cards show the same one-liner. Up to 60 points per project; the first is always kept.
 
+### Check-in and drift (`lib/domain/checkin.dart`)
+
+The phone can't see the bank, so plans **assume you follow them**. Savings and card answers are dated (`Money.asOf`); every plan starts from what you'd have today if you had followed it since then (`projectedToday`), so ready dates no longer slip just because a month passes. Assumed saving shows on the plan as "Planned saving since Oct 2026 · assumed until you check in".
+
+A **monthly check-in** keeps that honest. It's due when the answers are a month old and there hasn't been one in 25 days (home banner, or Settings → Check in now):
+1. "If you followed the plan since Oct 2026, you'd have about AED 21,000." Enter what you have now (or **About right**), and the card balance if there is one.
+2. The plan restarts from the real numbers; history records "Check-in: AED 3,000 behind plan".
+3. When the gap per month is more than AED 250 or 10% of spare money, it suggests the spending that would explain it: "If that's regular, your spending is closer to AED 13,500 than 12,000." **Update spending** or **It was a one-off**.
+
+### Why not yet
+
+Every plan that isn't ready now gets one sentence naming the blocker, on the verdict card and the home card, in this order: waiting on an unreachable project, nothing spare, loan over the cap, costs after buying too high, more than 30 years away, the credit card first, waiting for other projects, the safety cushion first, otherwise progress ("You're 53% of the way: AED 56,000 to go at AED 8,000 a month").
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.

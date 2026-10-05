@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/domain/assess.dart';
+import 'package:wealth_buddy/domain/checkin.dart';
 import 'package:wealth_buddy/domain/format.dart';
 import 'package:wealth_buddy/domain/history.dart';
 import 'package:wealth_buddy/domain/impact.dart';
@@ -466,6 +467,73 @@ void main() {
       recordHistory(d, today: today, why: 'again');
       expect(d.projects.first.history.length, historyCap);
       expect(d.projects.first.history.first.why, 'step 0'); // the start is kept
+    });
+  });
+
+  group('check-in and drift', () {
+    AppData lateHome({String? asOf = today}) =>
+        AppData(money: salaried()..asOf = asOf, projects: [project('home', 900000, 24, pay: 'loan', rate: 4.5, term: 300, rent: 6000)]);
+
+    test('with a savings date, time passing doesn\'t move the date', () {
+      final d = lateHome();
+      expect(readyMonth(assessAll(d, today: today)[1]!, today), '2029-08');
+      expect(readyMonth(assessAll(d, today: '2026-12-01')[1]!, '2026-12-01'), '2029-08');
+    });
+
+    test('the plan expects what it would have saved', () {
+      final e = expectedNow(lateHome(), today: '2026-12-01');
+      expect(e.months, 2);
+      expect(e.total, 21000); // 5,000 + 2 × 8,000 into the cushion
+      expect(checkInDue(lateHome(), today: '2026-12-01'), isTrue);
+      expect(checkInDue(lateHome(), today: today), isFalse);
+    });
+
+    test('behind the plan: real numbers in, and a spending suggestion', () {
+      final d = lateHome();
+      final r = applyCheckIn(d, today: '2026-12-01', actual: 18000);
+      expect(r.gap, 3000);
+      expect(r.perMonth, 1500);
+      expect(r.label, 'Check-in: AED 3,000 behind plan');
+      expect(d.money.savings, 18000);
+      expect(d.money.asOf, '2026-12-01');
+      expect(suggestedSpending(d.money, r), 13500);
+    });
+
+    test('a small slip is just a slip', () {
+      final d = lateHome();
+      final r = applyCheckIn(d, today: '2026-12-01', actual: 20800);
+      expect(r.onPlan, isTrue);
+      expect(suggestedSpending(d.money, r), isNull);
+    });
+  });
+
+  group('why not yet', () {
+    String? why(Money m, Project p) => whyNotYet(assess(m, p, today: today), today: today);
+
+    test('the cushion comes first', () {
+      expect(why(salaried(), project('home', 900000, 24, pay: 'loan', rate: 4.5, term: 300, rent: 6000)),
+          'Your safety cushion comes first: full by Feb 2027.');
+    });
+
+    test('the card comes first', () {
+      expect(why(salaried(card: 10000), project('car', 60000, 24)), startsWith('Your credit card comes first'));
+    });
+
+    test('progress when nothing blocks it', () {
+      expect(why(salaried(savings: 100000), project('car', 120000, 24)), startsWith('You\'re 53% of the way: AED 56,000 to go'));
+    });
+
+    test('waiting for other projects', () {
+      final d = AppData(money: salaried(), projects: [
+        project('vacation', 15000, 12)..id = 1,
+        project('car', 120000, 24)..id = 2,
+        project('home', 900000, 60, pay: 'loan', rate: 4.5, term: 300, rent: 6000)..id = 3,
+      ]);
+      expect(whyNotYet(assessAll(d, today: today)[3]!, today: today), startsWith('It\'s waiting for the vacation and Family SUV'));
+    });
+
+    test('ready now has nothing to explain', () {
+      expect(why(salaried(income: 30000, spending: 15000, savings: 200000, family: true), project('car', 80000, 12)), isNull);
     });
   });
 

@@ -754,7 +754,36 @@ String joinNames(List<String> names) =>
     names.length <= 1 ? names.join() : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
 
 /// Every project's plan. Projects planned together share one plan (see plan.dart); the rest are planned on their own.
-Map<int, Assessment> assessAll(AppData d, {required String today}) {
+///
+/// Plans start from today as if the plan has been followed since the savings answers were given
+/// (see [projectedToday]), so ready dates don't slip just because time passes.
+Map<int, Assessment> assessAll(AppData d, {required String today}) => _assessAllRaw(projectedToday(d, today: today), today: today);
+
+const String plannedSource = 'Planned saving (assumed)';
+
+/// The data as it would be today if the plan had been followed since [Money.asOf]: the card paid down,
+/// the cushion built and project pots grown month by month. Not saved; a check-in replaces it with real numbers.
+AppData projectedToday(AppData d, {required String today}) {
+  final asOf = d.money.asOf;
+  if (asOf == null || !d.money.complete || d.projects.isEmpty) return d;
+  final months = monthsUntil(asOf, monthKey(today));
+  if (months <= 0) return d;
+  final then = _assessAllRaw(d, today: asOf);
+  final planned = d.plannedProjects();
+  final lead = then[(planned.isNotEmpty ? planned.first : d.projects.first).id]!;
+  final c = d.copy();
+  c.money.cardDebt = _pathAt(lead.cardPath, months);
+  c.money.savings = _pathAt(lead.efPath, months);
+  for (final p in c.projects) {
+    final a = then[p.id]!;
+    if (a.potPath.isEmpty) continue;
+    final grown = _pathAt(a.potPath, months) - math.min(a.upfront, p.saved);
+    if (grown > 0.5) p.contributions.add(Contribution(amount: grown, source: plannedSource, date: today));
+  }
+  return c;
+}
+
+Map<int, Assessment> _assessAllRaw(AppData d, {required String today}) {
   final together = d.plannedProjects();
   final plan = together.isEmpty ? null : planAll(d.money, together, today: today, pinned: d.pinned.toSet());
   if (plan == null) return {for (final p in d.projects) p.id: assess(d.money, p, today: today)};
@@ -819,3 +848,20 @@ String priceMoves(String type) => switch (type) {
       'gold' => 'The gold price moves every day.',
       _ => 'Quotes usually expire after a few months.',
     };
+
+/// One honest sentence naming what's holding a project back, or null when it's ready now.
+String? whyNotYet(Assessment a, {required String today}) {
+  String at(int m) => m <= 0 ? 'now' : monthLabel(addMonths(monthKey(today), m));
+  if (a.readyIn == 0) return null;
+  final sh = a.share;
+  if (sh != null && sh.blocked) return 'It\'s waiting on the ${sh.after}, which can\'t be reached yet.';
+  if (a.surplus <= 0) return 'Your spending and repayments use all your pay, so nothing is left to save.';
+  if (a.dbr != null && a.dbr! > 50) return 'The loan would take your repayments over the banks\' 50% limit.';
+  if (a.afterSurplus < 0) return 'After buying, the monthly costs would be more than you have spare.';
+  if (a.readyIn == null) return 'At ${money(a.surplus)} spare a month it\'s more than 30 years away.';
+  if ((a.cardReadyIn ?? 0) > 0 && a.cardDebt > 0) return 'Your credit card comes first: clear by ${at(a.cardReadyIn!)}.';
+  if (sh != null && sh.waiting) return 'It\'s waiting for the ${sh.after}; saving for it starts ${at(sh.startsAt)}.';
+  if (!a.small && a.efHave < a.efTarget - 0.5 && (a.efReadyIn ?? 0) > 0) return 'Your safety cushion comes first: full by ${at(a.efReadyIn!)}.';
+  final pct = a.upfront > 0 ? (a.potStart / a.upfront * 100).floor() : 0;
+  return 'You\'re $pct% of the way: ${money(math.max(0.0, a.upfront - a.potStart))} to go at ${money(a.pace)} a month.';
+}

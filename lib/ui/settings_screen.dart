@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/state.dart';
+import 'check_in_sheet.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
-const appVersion = '0.9.0';
+const appVersion = '0.10.0';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -82,6 +83,14 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           header('Your data'),
+          if (data.projects.isNotEmpty && data.money.complete)
+            ListTile(
+              leading: const Icon(Icons.fact_check_outlined),
+              title: const Text('Check in now'),
+              subtitle: const Text('Tell the plan what you actually have'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => showCheckIn(context),
+            ),
           ListTile(
             leading: const Icon(Icons.tune),
             title: const Text('Update my money'),

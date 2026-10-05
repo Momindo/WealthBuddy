@@ -13,8 +13,10 @@ class Money {
   bool? family; // others rely on this income
   bool? variable; // income varies month to month
   int? payday; // day of the month salary arrives (1–31), 0 = it varies, null = not asked yet
+  String? asOf; // yyyy-mm-dd the savings and card answers were given; plans assume they've been followed since
+  String? lastCheckIn; // yyyy-mm-dd of the last monthly check-in
 
-  Money({this.income, this.spending, this.savings, this.repayments, this.cardDebt, this.investments, this.family, this.variable, this.payday});
+  Money({this.income, this.spending, this.savings, this.repayments, this.cardDebt, this.investments, this.family, this.variable, this.payday, this.asOf, this.lastCheckIn});
 
   bool get complete =>
       income != null && spending != null && savings != null && repayments != null && cardDebt != null && family != null && variable != null;
@@ -29,11 +31,13 @@ class Money {
         family: j['family'] as bool?,
         variable: j['variable'] as bool?,
         payday: (j['payday'] as num?)?.toInt(),
+        asOf: j['asOf'] as String?,
+        lastCheckIn: j['lastCheckIn'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
         'income': income, 'spending': spending, 'savings': savings, 'repayments': repayments,
-        'cardDebt': cardDebt, 'investments': investments, 'family': family, 'variable': variable, 'payday': payday,
+        'cardDebt': cardDebt, 'investments': investments, 'family': family, 'variable': variable, 'payday': payday, 'asOf': asOf, 'lastCheckIn': lastCheckIn,
       };
 
   Money copy() => Money.fromJson(toJson());

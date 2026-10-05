@@ -151,6 +151,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
         final v = _num(savings);
         if (v == null || v < 0) return _fail('Enter your savings, or tap "None".');
         m.savings = v;
+        m.asOf = today; // plans assume they're followed from here
       case Q.repayments:
         final v = _num(repayments);
         if (v == null || v < 0) return _fail('Enter your monthly loan repayments, or tap "No loans".');
@@ -164,6 +165,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
         } else {
           m.cardDebt = 0;
         }
+        m.asOf = today;
       case Q.situation:
         if (m.family == null || m.variable == null) return _fail('Answer both questions.');
       case Q.investments:

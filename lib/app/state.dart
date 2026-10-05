@@ -38,6 +38,11 @@ class AppController extends StateNotifier<AppModel> {
         dated = true;
       }
     }
+    // Savings answers given before plans assumed they're followed count from today.
+    if (d != null && d.money.complete && d.money.asOf == null) {
+      d.money.asOf = todayIso();
+      dated = true;
+    }
     // Every project gets a first history point, so later moves have something to compare with.
     if (d != null && d.projects.any((p) => p.history.isEmpty)) {
       recordHistory(d, today: todayIso(), why: timePassed, first: 'Plan as of ${dayLabel(todayIso())}');

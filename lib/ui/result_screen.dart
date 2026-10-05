@@ -85,6 +85,8 @@ class ResultScreen extends ConsumerWidget {
               Tag(verdictLabel(a.verdict), tone: tone),
               const SizedBox(height: 8),
               Text(a.headline, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+              if (whyNotYet(a, today: todayIso()) != null)
+                Padding(padding: const EdgeInsets.only(top: 4), child: Text(whyNotYet(a, today: todayIso())!, style: t.titleSmall?.copyWith(color: c))),
               const SizedBox(height: 6),
               Text(a.summary, style: t.bodyMedium),
               if (a.wait != null) _WaitBox(wait: a.wait!),
@@ -117,6 +119,16 @@ class ResultScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
+            if (a.earmarked - p.saved > 0.5)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: [
+                  Expanded(
+                    child: Text('Planned saving since ${monthLabel(monthKey(data.money.asOf ?? todayIso()))} · assumed until you check in', style: t.bodySmall),
+                  ),
+                  Text('+${fmt(a.earmarked - p.saved)}', style: t.bodySmall?.copyWith(color: toneColor(context, Tone.good))),
+                ]),
+              ),
             for (final c in p.contributions.reversed)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
