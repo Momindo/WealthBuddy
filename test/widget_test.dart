@@ -7,6 +7,7 @@ import 'package:wealth_buddy/data/encrypted_store.dart';
 import 'package:wealth_buddy/domain/format.dart';
 import 'package:wealth_buddy/domain/models.dart';
 import 'package:wealth_buddy/main.dart';
+import 'package:wealth_buddy/ui/widgets.dart';
 
 class MemoryStore extends EncryptedStore {
   AppData? saved;
@@ -121,5 +122,50 @@ void main() {
     await tester.tap(find.text('Car').last);
     await tester.pumpAndSettle();
     expect(find.text('How much will the car cost?'), findsOneWidget);
+  });
+
+  test('amounts format as you type', () {
+    String f(String old, String typed) => AmountFormatter().formatEditUpdate(TextEditingValue(text: old), TextEditingValue(text: typed)).text;
+    expect(f('', '120000'), '120,000');
+    expect(f('', '120k'), '120,000');
+    expect(f('', '1.5m'), '1,500,000');
+    expect(f('12', '12a'), '12');
+    expect(f('', '2500.5'), '2,500.5');
+  });
+
+  testWidgets('plan tabs, timeline, and delete with undo', (tester) async {
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    final store = MemoryStore()
+      ..saved = AppData(
+        money: Money(income: 20000, spending: 12000, savings: 5000, repayments: 0, cardDebt: 0, family: false, variable: false),
+        projects: [Project(id: 1, type: 'car', name: 'Family SUV', cost: 120000, target: addMonths(monthKey(todayIso()), 24))],
+        settings: Settings(privacySeen: true, tourSeen: true),
+      );
+    await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(store), reminderProvider.overrideWithValue(null), lockProvider.overrideWithValue(null)], child: const WealthBuddyApp()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Timeline'));
+    await tester.pumpAndSettle();
+    expect(find.text('Timeline'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Family SUV'));
+    await tester.pumpAndSettle();
+    expect(find.text('Your plan'), findsOneWidget);
+    await tester.tap(find.text('Money'));
+    await tester.pumpAndSettle();
+    expect(find.text('Money set aside'), findsOneWidget);
+    expect(find.text('Your plan'), findsNothing);
+
+    await tester.tap(find.byTooltip('Delete project'));
+    await tester.pumpAndSettle();
+    expect(store.saved!.projects, isEmpty);
+    expect(find.text('Family SUV deleted'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(store.saved!.projects.length, 1);
   });
 }

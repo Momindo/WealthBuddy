@@ -80,7 +80,7 @@ ProjectKind kindOf(String type) => kinds[type] ?? kinds['other']!;
 
 /// Which questions to ask, in order. Money questions are skipped when they're already answered
 /// (the user gets a one-screen check instead), unless they choose to update them.
-enum Q { cost, when, pay, loan, rent, setAside, income, payday, spending, savings, repayments, card, situation, investments, moneyCheck }
+enum Q { cost, when, pay, loan, rent, setAside, payGroup, monthGroup, lifeGroup, income, payday, spending, savings, repayments, card, situation, investments, moneyCheck }
 
 /// [isNew]: only a new project asks about money already set aside; later it's added with "Add money".
 List<Q> projectQuestions(Project p, {bool isNew = false}) {
@@ -88,7 +88,13 @@ List<Q> projectQuestions(Project p, {bool isNew = false}) {
   return [Q.cost, Q.when, if (k.canFinance) Q.pay, if (k.canFinance && p.pay == 'loan') Q.loan, if (p.type == 'home') Q.rent, if (isNew) Q.setAside];
 }
 
-const List<Q> moneyQuestions = [Q.income, Q.payday, Q.spending, Q.savings, Q.repayments, Q.card, Q.situation, Q.investments];
+/// Money questions, three screens: pay; the month (spending, loans, savings); debts and situation.
+const Map<Q, List<Q>> moneyGroups = {
+  Q.payGroup: [Q.income, Q.payday],
+  Q.monthGroup: [Q.spending, Q.repayments, Q.savings],
+  Q.lifeGroup: [Q.card, Q.situation, Q.investments],
+};
+const List<Q> moneyQuestions = [Q.payGroup, Q.monthGroup, Q.lifeGroup];
 
 double instalment(double principal, double annualRate, int months) {
   if (months <= 0) return 0;

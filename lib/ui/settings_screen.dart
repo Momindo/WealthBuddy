@@ -7,7 +7,7 @@ import 'tour_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
-const appVersion = '0.11.0';
+const appVersion = '0.12.0';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});

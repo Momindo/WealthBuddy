@@ -130,8 +130,10 @@ class Settings {
   bool appLock; // ask for fingerprint, face or device PIN when the app opens
   bool tourSeen; // the feature tour after the privacy pop-up has been shown
   String? paydayDone; // yyyy-mm-dd of the payday whose card was marked done
+  List<int> celebrated; // projects already celebrated as affordable
 
-  Settings({this.theme = 'system', this.privacySeen = false, this.reminders = true, this.appLock = false, this.tourSeen = false, this.paydayDone});
+  Settings({this.theme = 'system', this.privacySeen = false, this.reminders = true, this.appLock = false, this.tourSeen = false, this.paydayDone, List<int>? celebrated})
+      : celebrated = celebrated ?? [];
 
   factory Settings.fromJson(Map<String, dynamic> j) => Settings(
         theme: (j['theme'] as String?) ?? 'system',
@@ -141,10 +143,11 @@ class Settings {
         // People who already saw the privacy pop-up before the tour existed don't get it on update.
         tourSeen: (j['tourSeen'] as bool?) ?? ((j['privacySeen'] as bool?) ?? false),
         paydayDone: j['paydayDone'] as String?,
+        celebrated: ((j['celebrated'] as List?) ?? []).map((e) => (e as num).toInt()).toList(),
       );
 
   Map<String, dynamic> toJson() =>
-      {'theme': theme, 'privacySeen': privacySeen, 'reminders': reminders, 'appLock': appLock, 'tourSeen': tourSeen, 'paydayDone': paydayDone};
+      {'theme': theme, 'privacySeen': privacySeen, 'reminders': reminders, 'appLock': appLock, 'tourSeen': tourSeen, 'paydayDone': paydayDone, 'celebrated': celebrated};
 }
 
 class AppData {

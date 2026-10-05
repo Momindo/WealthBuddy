@@ -1,5 +1,6 @@
 // Theme and small shared widgets.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../domain/assess.dart';
 
@@ -201,3 +202,23 @@ Future<void> showPrivacy(BuildContext context) => showDialog<void>(
         );
       },
     );
+
+/// Amounts as you type: 120000 shows as 120,000; "120k" becomes 120,000 and "1.2m" 1,200,000.
+class AmountFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    var t = newValue.text.toLowerCase().replaceAll(',', '').replaceAll(' ', '');
+    if (t.isEmpty) return newValue.copyWith(text: '');
+    final mult = t.endsWith('k') ? 1000 : (t.endsWith('m') ? 1000000 : 1);
+    if (mult > 1) {
+      final v = double.tryParse(t.substring(0, t.length - 1));
+      if (v == null) return oldValue;
+      t = (v * mult).round().toString();
+    }
+    if (!RegExp(r'^\d*\.?\d{0,2}$').hasMatch(t)) return oldValue;
+    final parts = t.split('.');
+    final whole = parts[0].replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
+    final text = parts.length > 1 ? '$whole.${parts[1]}' : whole;
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+}

@@ -93,6 +93,7 @@ class _AddMoneySheetState extends ConsumerState<AddMoneySheet> {
           controller: amount,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [AmountFormatter()],
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
           decoration: const InputDecoration(labelText: 'How much did you get?', prefixText: 'AED '),
           onChanged: (_) => setState(() => err = null),

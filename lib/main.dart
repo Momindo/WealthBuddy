@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/state.dart';
+import 'ui/celebrate.dart';
 import 'ui/home_screen.dart';
 import 'ui/logo.dart';
 import 'ui/tour_screen.dart';
@@ -21,7 +22,7 @@ class WealthBuddyApp extends ConsumerWidget {
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
       themeMode: mode,
-      home: model.loaded ? const LockGate(child: PrivacyGate(child: HomeScreen())) : const SplashView(),
+      home: model.loaded ? const LockGate(child: PrivacyGate(child: CelebrationWatcher(child: HomeScreen()))) : const SplashView(),
     );
   }
 }

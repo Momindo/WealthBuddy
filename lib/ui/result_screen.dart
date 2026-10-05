@@ -62,11 +62,18 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           IconButton(
             tooltip: 'Delete project',
             icon: const Icon(Icons.delete_outline),
-            onPressed: () async {
-              if (await confirm(context, 'Delete ${p.name}?', 'This removes the project from this phone.', 'Delete')) {
-                ref.read(appProvider.notifier).update((d) => d.removeProject(p.id), why: '${p.name} removed');
-                if (context.mounted) Navigator.pop(context);
-              }
+            onPressed: () {
+              // No "are you sure?": delete straight away and offer Undo.
+              final ctl = ref.read(appProvider.notifier);
+              final before = data.copy();
+              final messenger = ScaffoldMessenger.of(context);
+              ctl.update((d) => d.removeProject(p.id), why: '${p.name} removed');
+              Navigator.pop(context);
+              messenger.showSnackBar(SnackBar(
+                content: Text('${p.name} deleted'),
+                duration: const Duration(seconds: 6),
+                action: SnackBarAction(label: 'Undo', onPressed: () => ctl.restore(before)),
+              ));
             },
           ),
         ],
@@ -374,10 +381,13 @@ class SplitSection extends ConsumerWidget {
         TextButton.icon(
           icon: const Icon(Icons.link_off),
           label: const Text('Plan this on its own'),
-          onPressed: () async {
-            if (await confirm(context, 'Plan ${p.name} on its own?', 'Its plan will ignore your other projects, so they may count on the same spare money.', 'Plan on its own')) {
-              ctl.update((d) => d.setSolo(projectId, true), why: '${p.name} planned on its own');
-            }
+          onPressed: () {
+            final before = data.copy();
+            ctl.update((d) => d.setSolo(projectId, true), why: '${p.name} planned on its own');
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('${p.name} is planned on its own'),
+              action: SnackBarAction(label: 'Undo', onPressed: () => ctl.restore(before)),
+            ));
           },
         ),
       ]),
@@ -462,6 +472,7 @@ class _PriceCheckState extends ConsumerState<PriceCheck> {
               child: TextField(
                   controller: cost,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [AmountFormatter()],
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(labelText: 'New price', prefixText: 'AED ')),
             ),
@@ -487,7 +498,7 @@ class _PriceCheckState extends ConsumerState<PriceCheck> {
             FilledButton.tonal(
               onPressed: () => setState(() {
                 editing = true;
-                cost.text = _plain(p.cost);
+                cost.text = fmt(p.cost);
                 rate.text = _plain(p.rate);
               }),
               child: const Text('Update'),
@@ -539,7 +550,10 @@ class HistorySection extends StatelessWidget {
         note(context, 'Back where you started: ready ${assessment.readyLabel}.'),
       if (setback != null) Padding(padding: const EdgeInsets.only(top: 4), child: note(context, 'Biggest step back: ${setback.why} (${dayLabel(setback.date)}).')),
       const SizedBox(height: 10),
-      SizedBox(height: 120, child: CustomPaint(painter: _HistoryPainter(h, project.target, Theme.of(context).colorScheme), size: Size.infinite)),
+      Semantics(
+        label: 'Chart of the ready date over time: ${h.map((x) => x.ready == null ? 'out of reach' : monthLabel(x.ready!)).join(', then ')}',
+        child: SizedBox(height: 120, child: CustomPaint(painter: _HistoryPainter(h, project.target, Theme.of(context).colorScheme), size: Size.infinite)),
+      ),
       Padding(padding: const EdgeInsets.only(top: 4, bottom: 8), child: note(context, 'Higher is sooner. The dashed line is when you want it.')),
       for (var i = h.length - 1; i >= 0; i--)
         Padding(

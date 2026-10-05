@@ -80,14 +80,15 @@ class _CheckInSheetState extends ConsumerState<CheckInSheet> {
               controller: have,
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [AmountFormatter()],
               decoration: const InputDecoration(labelText: 'What you have now', helperText: 'Savings plus money set aside for projects', prefixText: 'AED '),
             ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton(
                 onPressed: () => setState(() {
-                  have.text = fmt(roundDown(e.total, 100)).replaceAll(',', '');
-                  if (askCard) card.text = fmt(roundUp(e.card, 100)).replaceAll(',', '');
+                  have.text = fmt(roundDown(e.total, 100));
+                  if (askCard) card.text = fmt(roundUp(e.card, 100));
                 }),
                 child: const Text('About right'),
               ),
@@ -96,6 +97,7 @@ class _CheckInSheetState extends ConsumerState<CheckInSheet> {
               TextField(
                 controller: card,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [AmountFormatter()],
                 decoration: const InputDecoration(labelText: 'Card balance now', prefixText: 'AED '),
               ),
             if (err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(err!, style: TextStyle(color: toneColor(context, Tone.bad)))),

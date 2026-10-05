@@ -54,6 +54,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
   final repayments = TextEditingController(), card = TextEditingController(), investments = TextEditingController();
   final setAside = TextEditingController();
 
+  String _amt(double? v) => v == null ? '' : fmt(v);
   String _plain(double? v) => v == null ? '' : (v == v.roundToDouble() ? v.toInt().toString() : v.toString());
   double? _num(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '').trim());
 
@@ -67,7 +68,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
       p = data.projects.firstWhere((x) => x.id == widget.projectId).copy();
       whenMonths = monthsUntil(today, p.target).clamp(1, 600);
       name.text = p.name;
-      cost.text = _plain(p.cost);
+      cost.text = _amt(p.cost);
     } else {
       final type = widget.type ?? 'other';
       final k = kindOf(type);
@@ -75,15 +76,15 @@ class _WizardState extends ConsumerState<WizardScreen> {
           downPct: k.minDown > 0 ? k.minDown : 20, rate: k.rate, term: k.term);
     }
     rate.text = _plain(p.rate);
-    rent.text = _plain(p.rent);
-    income.text = _plain(m.income);
-    spending.text = _plain(m.spending);
-    savings.text = _plain(m.savings);
-    repayments.text = _plain(m.repayments);
-    investments.text = _plain(m.investments);
+    rent.text = _amt(p.rent);
+    income.text = _amt(m.income);
+    spending.text = _amt(m.spending);
+    savings.text = _amt(m.savings);
+    repayments.text = _amt(m.repayments);
+    investments.text = _amt(m.investments);
     if (m.cardDebt != null) {
       carriesCard = m.cardDebt! > 0;
-      if (carriesCard!) card.text = _plain(m.cardDebt);
+      if (carriesCard!) card.text = _amt(m.cardDebt);
     }
   }
 
@@ -107,72 +108,84 @@ class _WizardState extends ConsumerState<WizardScreen> {
 
   void _fail(String message) => setState(() => err = message);
 
-  void _next() {
-    final q = flow[i];
+  /// Checks and stores one answer. Returns what's wrong, or null.
+  String? _apply(Q q) {
     switch (q) {
       case Q.cost:
         final c = _num(cost);
-        if (c == null || c <= 0) return _fail('Enter the cost in AED.');
+        if (c == null || c <= 0) return 'Enter the cost in AED.';
         p.cost = c;
         p.name = name.text.trim().isEmpty ? k.label : name.text.trim();
       case Q.when:
-        if (whenMonths == null) return _fail('Pick when you want it.');
+        if (whenMonths == null) return 'Pick when you want it.';
         p.target = addMonths(monthKey(today), whenMonths!);
       case Q.pay:
         break;
       case Q.loan:
         final r = _num(rate);
-        if (r == null || r < 0 || r > 30) return _fail('Enter the interest rate, for example 3.5.');
+        if (r == null || r < 0 || r > 30) return 'Enter the interest rate, for example 3.5.';
         p.rate = r;
       case Q.rent:
         final r = _num(rent);
-        if (r == null || r < 0) return _fail('Enter your monthly rent, or tap "I don\'t pay rent".');
+        if (r == null || r < 0) return 'Enter your monthly rent, or tap "I don\'t pay rent".';
         p.rent = r;
       case Q.setAside:
-        if (hasSetAside == null) return _fail('Choose one.');
+        if (hasSetAside == null) return 'Choose one.';
         p.contributions.removeWhere((c) => c.source == startSource);
         if (hasSetAside!) {
           final v = _num(setAside);
-          if (v == null || v <= 0) return _fail('Enter how much you\'ve set aside, or choose "Not yet".');
+          if (v == null || v <= 0) return 'Enter how much you\'ve set aside, or choose "Not yet".';
           p.contributions.add(Contribution(amount: v, source: startSource, date: today));
         }
       case Q.income:
         final v = _num(income);
-        if (v == null || v <= 0) return _fail('Enter your monthly take-home pay.');
+        if (v == null || v <= 0) return 'Enter your monthly take-home pay.';
         m.income = v;
       case Q.payday:
-        if (m.payday == null) return _fail('Pick a day, or "It varies".');
+        if (m.payday == null) return 'Pick a day, or "It varies".';
         if (m.payday! > 0 && ref.read(appProvider).data.settings.reminders) ref.read(reminderProvider)?.requestPermission();
       case Q.spending:
         final v = _num(spending);
-        if (v == null || v < 0) return _fail('Enter a rough monthly figure, or tap one of the estimates.');
+        if (v == null || v < 0) return 'Enter a rough monthly figure, or tap one of the estimates.';
         m.spending = v;
       case Q.savings:
         final v = _num(savings);
-        if (v == null || v < 0) return _fail('Enter your savings, or tap "None".');
+        if (v == null || v < 0) return 'Enter your savings, or tap "None".';
         m.savings = v;
         m.asOf = today; // plans assume they're followed from here
       case Q.repayments:
         final v = _num(repayments);
-        if (v == null || v < 0) return _fail('Enter your monthly loan repayments, or tap "No loans".');
+        if (v == null || v < 0) return 'Enter your monthly loan repayments, or tap "No loans".';
         m.repayments = v;
       case Q.card:
-        if (carriesCard == null) return _fail('Choose one.');
+        if (carriesCard == null) return 'Choose one.';
         if (carriesCard!) {
           final v = _num(card);
-          if (v == null || v <= 0) return _fail('Enter roughly how much you owe on cards.');
+          if (v == null || v <= 0) return 'Enter roughly how much you owe on cards.';
           m.cardDebt = v;
         } else {
           m.cardDebt = 0;
         }
         m.asOf = today;
       case Q.situation:
-        if (m.family == null || m.variable == null) return _fail('Answer both questions.');
+        if (m.family == null || m.variable == null) return 'Answer both questions.';
       case Q.investments:
         final v = _num(investments);
         m.investments = (v == null || v <= 0) ? null : v;
       case Q.moneyCheck:
+      case Q.payGroup:
+      case Q.monthGroup:
+      case Q.lifeGroup:
         break;
+    }
+    return null;
+  }
+
+  void _next() {
+    final q = flow[i];
+    for (final sub in moneyGroups[q] ?? [q]) {
+      final e = _apply(sub);
+      if (e != null) return _fail(e);
     }
     err = null;
     if (i >= flow.length - 1) {
@@ -411,24 +424,32 @@ class _WizardState extends ConsumerState<WizardScreen> {
         Q.situation => ('A bit about your situation', 'This sets how big your safety cushion should be.'),
         Q.investments => ('Any investments you could sell?', 'Optional. Shares, funds, gold or crypto. Only used to suggest options; the plan never relies on them.'),
         Q.moneyCheck => ('Are your money details still right?', 'They\'re shared by all your projects.'),
+        Q.payGroup => ('Your pay', 'What arrives each month, and when. Rough figures are fine; you can change them any time.'),
+        Q.monthGroup => ('Your month', 'What goes out, and what you have saved. Estimates are fine.'),
+        Q.lifeGroup => ('Debts and your situation', 'This sets how big your safety cushion should be.'),
       };
 
   List<Widget> _input(Q q) {
     switch (q) {
       case Q.cost:
         return [
-          _amount(cost, label: 'Cost'),
+          _amount(cost, label: 'Cost', autofocus: true),
           const SizedBox(height: 16),
           TextField(controller: name, textCapitalization: TextCapitalization.sentences, decoration: InputDecoration(labelText: 'Name (optional)', hintText: k.label)),
         ];
       case Q.when:
         final now = monthKey(today);
         return [
-          for (final n in [1, 3, 6, 12, 18, 24, 36, 60])
+          for (final n in [3, 6, 12, 24, 36, 60])
             _option('In ${durationLabel(n)}', monthLabel(addMonths(now, n)), whenMonths == n, () => setState(() {
                   whenMonths = n;
                   err = null;
                 })),
+          _option(
+              whenMonths != null && ![3, 6, 12, 24, 36, 60].contains(whenMonths) ? monthLabel(addMonths(now, whenMonths!)) : 'Pick a month…',
+              'Any month up to 30 years ahead',
+              whenMonths != null && ![3, 6, 12, 24, 36, 60].contains(whenMonths),
+              _pickMonth),
         ];
       case Q.pay:
         return [
@@ -487,7 +508,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
           if (hasSetAside == true) ...[const SizedBox(height: 12), _amount(setAside, label: 'Set aside for this')],
         ];
       case Q.income:
-        return [_amount(income, label: 'Monthly take-home', quick: [for (final v in <double>[8000, 12000, 15000, 20000, 25000, 35000, 50000]) (fmt(v), v)])];
+        return [_amount(income, label: 'Monthly take-home', autofocus: true, quick: [for (final v in <double>[8000, 12000, 15000, 20000, 25000, 35000, 50000]) (fmt(v), v)])];
       case Q.payday:
         return [
           PaydayPicker(
@@ -534,6 +555,19 @@ class _WizardState extends ConsumerState<WizardScreen> {
         ];
       case Q.investments:
         return [_amount(investments, label: 'Investments (optional)', autofocus: false, quick: [('None', 0)])];
+      case Q.payGroup:
+      case Q.monthGroup:
+      case Q.lifeGroup:
+        final subs = moneyGroups[q]!;
+        return [
+          for (var n = 0; n < subs.length; n++) ...[
+            if (n > 0) const SizedBox(height: 24),
+            Text(_text(subs[n]).$1, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            if (_text(subs[n]).$2.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: note(context, _text(subs[n]).$2)),
+            const SizedBox(height: 10),
+            ..._input(subs[n]),
+          ],
+        ];
       case Q.moneyCheck:
         return [
           Section(children: [
@@ -552,13 +586,53 @@ class _WizardState extends ConsumerState<WizardScreen> {
     }
   }
 
-  Widget _amount(TextEditingController c, {required String label, List<(String, double)> quick = const [], bool autofocus = true}) => Column(
+  /// Month and year picker for "When do you want it?".
+  Future<void> _pickMonth() async {
+    final now = monthKey(today);
+    final start = whenMonths != null ? addMonths(now, whenMonths!) : addMonths(now, 12);
+    var year = int.parse(start.substring(0, 4));
+    final firstYear = int.parse(now.substring(0, 4));
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => AlertDialog(
+          title: Row(children: [
+            IconButton(tooltip: 'Previous year', onPressed: year > firstYear ? () => set(() => year--) : null, icon: const Icon(Icons.chevron_left)),
+            Expanded(child: Text('$year', textAlign: TextAlign.center)),
+            IconButton(tooltip: 'Next year', onPressed: year < firstYear + 30 ? () => set(() => year++) : null, icon: const Icon(Icons.chevron_right)),
+          ]),
+          content: Wrap(spacing: 8, runSpacing: 8, children: [
+            for (var mo = 1; mo <= 12; mo++)
+              Builder(builder: (_) {
+                final ym = '$year-${mo.toString().padLeft(2, '0')}';
+                final ok = ym.compareTo(now) > 0;
+                return ChoiceChip(
+                  label: SizedBox(width: 36, child: Text(monthLabel(ym).substring(0, 3), textAlign: TextAlign.center)),
+                  selected: ym == start,
+                  onSelected: ok ? (_) => Navigator.pop(ctx, ym) : null,
+                );
+              }),
+          ]),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel'))],
+        ),
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        whenMonths = monthsUntil(today, picked);
+        err = null;
+      });
+    }
+  }
+
+  Widget _amount(TextEditingController c, {required String label, List<(String, double)> quick = const [], bool autofocus = false}) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextField(
             controller: c,
             autofocus: autofocus,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [AmountFormatter()],
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
             decoration: InputDecoration(labelText: label, prefixText: 'AED '),
             onChanged: (_) {
@@ -573,7 +647,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
                 ActionChip(
                     label: Text(l),
                     onPressed: () => setState(() {
-                          c.text = _plain(v);
+                          c.text = fmt(v);
                           err = null;
                         })),
             ]),

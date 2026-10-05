@@ -56,6 +56,14 @@ class AppController extends StateNotifier<AppModel> {
     _reminders?.reschedule(state.data);
   }
 
+  /// Puts back a snapshot taken before a change (Undo).
+  void restore(AppData snapshot) {
+    final next = snapshot.copy();
+    state = AppModel(true, next);
+    _store.save(next);
+    _reminders?.reschedule(next);
+  }
+
   /// Every change: copy, change, publish, save, refresh reminders.
   /// [why] marks a change that can move ready dates; it's recorded in each project's history when it does.
   /// Any move found just before the change is put down to time passing.

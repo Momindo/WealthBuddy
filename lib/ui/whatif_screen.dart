@@ -3,6 +3,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/state.dart';
@@ -95,7 +96,18 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
           Text(money(value), style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
           SizedBox(width: 64, child: Text(delta(value, base), textAlign: TextAlign.end, style: t.bodySmall)),
         ]),
-        Slider(value: value.clamp(lo, hi).toDouble(), min: lo, max: hi, divisions: div, label: fmt(value), onChanged: onDrag, onChangeEnd: onDone),
+        Slider(
+            value: value.clamp(lo, hi).toDouble(),
+            min: lo,
+            max: hi,
+            divisions: div,
+            label: fmt(value),
+            semanticFormatterCallback: (v) => money(v),
+            onChanged: (v) {
+              if (v != value) HapticFeedback.selectionClick();
+              onDrag(v);
+            },
+            onChangeEnd: onDone),
       ]);
     }
 
@@ -133,7 +145,6 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
                       Text('Want it by', style: t.bodySmall),
                       IconButton(
                         tooltip: 'A month earlier',
-                        visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.remove_circle_outline, size: 20),
                         onPressed: target.compareTo(earliestTarget(today)) <= 0
                             ? null
@@ -142,7 +153,6 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
                       Text(monthLabel(target), style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                       IconButton(
                         tooltip: 'A month later',
-                        visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.add_circle_outline, size: 20),
                         onPressed: () => setState(() => targets[p.id] = addMonths(target, 1)),
                       ),
