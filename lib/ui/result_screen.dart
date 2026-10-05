@@ -227,6 +227,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     const SizedBox(width: 8),
                     Expanded(child: Text(w, style: t.bodyMedium)),
                   ]),
+                ),
+            ]),
             if (p.history.length < 2 && a.watchouts.isEmpty) note(context, 'Nothing more for now. Changes to your ready date will show here.'),
           ],
 
