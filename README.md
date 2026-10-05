@@ -136,6 +136,12 @@ Every plan that isn't ready now gets one sentence naming the blocker, on the ver
 - **First run**: privacy pop-up, then a 4-card **feature tour** with parallel projects as the showcase (replay from Settings → How it works). Money questions are 3 screens (your pay; your month; debts and situation). "When do you want it?" has quick choices plus a month-and-year picker. Amounts show thousands separators as you type, and 120k / 1.2m work.
 - **Polish**: delete and "plan on its own" happen straight away with **Undo** instead of an "are you sure?"; a one-time celebration with confetti when a project becomes affordable; haptic ticks on what-if sliders; screen-reader labels for progress, the history chart and the timeline.
 
+### Big number, no-cushion option, motion (0.13)
+
+- **The big number** (home, top): the smallest amount to put aside each month so every project makes its date — found by re-running the whole shared plan at different spare amounts (`neededMonthly`, AED 10 steps), so it counts the card, the cushion and the costs each purchase adds. Below it: "You have AED 8,000 spare · ✓ 570 to spare" or "⚠ 930 short" (opens What if…). Cached per data change.
+- **Plan without a safety cushion**: Settings → Planning → "Keep a safety cushion first" (on by default), also a switch in What if…. Off means the cushion target is 0: savings go to projects straight away, the cushion step and its regret check disappear, the card still comes first. Turning it off previews which ready dates move; while off, home and every plan show a warning with "Turn back on".
+- **Motion** (`lib/ui/motion.dart`, all 200–700 ms, none loop, off with the phone's reduce-motion setting): the big number and % ring count up; progress bars fill; project cards rise in one after another; verdict tags and headlines cross-fade; plan tabs fade; Android screens fade-and-rise (iOS keeps swipe-back); the payday card's Done draws a tick then folds away; timeline bars grow; cards press down slightly.
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.
