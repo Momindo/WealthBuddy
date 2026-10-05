@@ -7,6 +7,7 @@ import '../domain/assess.dart';
 import '../domain/format.dart';
 import '../domain/models.dart';
 import 'add_money_sheet.dart';
+import 'whatif_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
@@ -165,8 +166,13 @@ class ResultScreen extends ConsumerWidget {
             ]),
 
           OutlinedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WizardScreen.edit(p.id))),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatIfScreen())),
             icon: const Icon(Icons.tune),
+            label: const Text('What if…'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => WizardScreen.edit(p.id))),
+            icon: const Icon(Icons.edit_outlined),
             label: const Text('Change answers'),
           ),
           note(context,

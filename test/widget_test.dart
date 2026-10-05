@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/app/state.dart';
 import 'package:wealth_buddy/data/encrypted_store.dart';
+import 'package:wealth_buddy/domain/format.dart';
 import 'package:wealth_buddy/domain/models.dart';
 import 'package:wealth_buddy/main.dart';
 
@@ -65,5 +66,28 @@ void main() {
 
     expect(find.textContaining('AED 35,000 of AED 120,000'), findsOneWidget);
     expect(store.saved!.projects.first.contributions.last.source, 'Bonus');
+  });
+
+  testWidgets('what if: try the smallest fix', (tester) async {
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+    final store = MemoryStore()
+      ..saved = AppData(
+        money: Money(income: 20000, spending: 12000, savings: 5000, repayments: 0, cardDebt: 0, family: false, variable: false),
+        projects: [Project(id: 1, type: 'car', name: 'Family SUV', cost: 120000, target: addMonths(monthKey(todayIso()), 12))],
+        settings: Settings(privacySeen: true),
+      );
+    await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(store), reminderProvider.overrideWithValue(null), lockProvider.overrideWithValue(null)], child: const WealthBuddyApp()));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('What if…'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('What if…'));
+    await tester.pumpAndSettle();
+    expect(find.text('Take-home pay'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Try it').first, 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Try it').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Everything is on time.'), findsOneWidget);
+    expect(store.saved!.money.spending, 12000); // nothing saved until "Keep"
   });
 }

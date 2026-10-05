@@ -6,6 +6,7 @@ import 'package:wealth_buddy/domain/assess.dart';
 import 'package:wealth_buddy/domain/format.dart';
 import 'package:wealth_buddy/domain/models.dart';
 import 'package:wealth_buddy/domain/reminders.dart';
+import 'package:wealth_buddy/domain/whatif.dart';
 
 const today = '2026-10-01';
 String inMonths(int n) => addMonths(monthKey(today), n);
@@ -291,6 +292,44 @@ void main() {
       final a = assess(salaried(spending: 8000, repayments: 6000), project('car', 60000, 24, pay: 'loan'), today: today);
       expect(a.verdict, 'onTrack');
       expect(a.checks.where((c) => !c.ok).map((c) => c.label), ['Loans comfortable']);
+    });
+  });
+
+  group('what if', () {
+    AppData lateHome() => AppData(money: salaried(), projects: [project('home', 900000, 24, pay: 'loan', rate: 4.5, term: 300, rent: 6000)]);
+
+    test('more pay and less spending put the home on time, without saving anything', () {
+      final d = lateHome();
+      expect(assessAll(d, today: today)[1]!.readyIn, 34);
+      final a = whatIf(d, today: today, income: 22000, spending: 11000)[1]!;
+      expect(a.readyIn, 24);
+      expect(a.verdict, 'onTrack');
+      expect(readyChange(assessAll(d, today: today)[1]!, a), '10 months sooner');
+      expect(d.money.income, 20000); // untouched
+      expect(d.money.spending, 12000);
+    });
+
+    test('smallest fix: spending less counts for more than earning more', () {
+      final f = smallestFix(lateHome(), today: today);
+      expect(f.spendCut, 2750); // also shrinks the cushion needed first
+      expect(f.payRise, 3050);
+    });
+
+    test('nothing to fix when everything is on time', () {
+      final f = smallestFix(AppData(money: salaried(), projects: [project('car', 60000, 24)]), today: today);
+      expect(f.spendCut, isNull);
+      expect(f.payRise, isNull);
+    });
+
+    test('in a shared plan, moving one date moves the others', () {
+      final d = AppData(money: salaried(), projects: [
+        project('vacation', 15000, 12)..id = 1,
+        project('car', 120000, 24)..id = 2,
+        project('home', 900000, 60, pay: 'loan', rate: 4.5, term: 300, rent: 6000)..id = 3,
+      ]);
+      final before = assessAll(d, today: today);
+      final after = whatIf(d, today: today, targets: {2: inMonths(72)}); // the SUV can wait until after the home
+      expect(after[3]!.readyIn! < before[3]!.readyIn!, isTrue); // so the home comes sooner
     });
   });
 

@@ -80,6 +80,12 @@ Home cards say *Saving now · AED 6,180 a month* or *Waiting · starts Jun 2028*
 
   Two or more warnings make the verdict **Yes, but tight**, with a price that passes every check and a bigger down payment if one helps. One warning keeps the verdict and shows that line under it.
 
+### What if (`lib/domain/whatif.dart`, `lib/ui/whatif_screen.dart`)
+
+**What if…** (on home next to *Your projects*, and on every plan) opens sliders for take-home pay and monthly spending (±30%) and a want-by stepper per project. Every project's ready date, verdict and saving-now/waiting status update on each slider stop; the shared plan is re-run as a whole, so moving one date can move the others.
+
+It also searches for the **smallest change that puts everything on time**: a spending cut or a pay rise, in AED 50 steps. Spending cuts count for more, because they also shrink the cushion needed first (late home example: 2,750 less spending does what 3,050 more pay does). **Try it** sets the slider. Nothing is saved until **Keep these changes**, which lists what will change first.
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.

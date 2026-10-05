@@ -8,6 +8,7 @@ import 'add_money_sheet.dart';
 import 'logo.dart';
 import 'settings_screen.dart';
 import 'result_screen.dart';
+import 'whatif_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
@@ -64,7 +65,15 @@ class HomeScreen extends ConsumerWidget {
             ],
           ),
           if (data.projects.isNotEmpty) ...[
-            Text('Your projects', style: t.titleMedium),
+            Row(children: [
+              Expanded(child: Text('Your projects', style: t.titleMedium)),
+              if (data.money.complete)
+                TextButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatIfScreen())),
+                  icon: const Icon(Icons.tune),
+                  label: const Text('What if…'),
+                ),
+            ]),
             for (final p in data.projects)
               Builder(builder: (context) {
                 final a = all?[p.id];
