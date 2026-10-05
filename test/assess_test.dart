@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/domain/assess.dart';
 import 'package:wealth_buddy/domain/format.dart';
+import 'package:wealth_buddy/domain/impact.dart';
 import 'package:wealth_buddy/domain/models.dart';
 import 'package:wealth_buddy/domain/reminders.dart';
 import 'package:wealth_buddy/domain/whatif.dart';
@@ -330,6 +331,52 @@ void main() {
       final before = assessAll(d, today: today);
       final after = whatIf(d, today: today, targets: {2: inMonths(72)}); // the SUV can wait until after the home
       expect(after[3]!.readyIn! < before[3]!.readyIn!, isTrue); // so the home comes sooner
+    });
+  });
+
+  group('what it costs the others', () {
+    AppData three() => AppData(money: salaried(), projects: [
+          project('vacation', 15000, 12)..id = 1,
+          project('car', 120000, 24)..id = 2,
+          project('home', 900000, 60, pay: 'loan', rate: 4.5, term: 300, rent: 6000)..id = 3,
+        ]);
+    Project wedding() => project('wedding', 80000, 18)..id = 4;
+    bool onTime(Assessment a) => a.readyIn != null && a.readyIn! <= a.monthsLeft;
+
+    test('adding a wedding pushes the others back, and says why', () {
+      final d = three();
+      final im = impactOf(d, d.money, wedding(), today: today);
+      expect(im.anyMoves, isTrue);
+      expect(im.others.any((o) => o.later), isTrue);
+      expect(im.others.any((o) => o.nowMisses), isTrue);
+      expect(im.why, contains('has to wait'));
+    });
+
+    test('the suggested date keeps everyone on time', () {
+      final d = three();
+      final t = harmlessTarget(d, d.money, wedding(), today: today);
+      expect(t, isNotNull);
+      expect(t!.compareTo(wedding().target), greaterThan(0));
+      final all = assessAll(d.copy()..projects.add(wedding()..target = t), today: today);
+      expect(all.values.every(onTime), isTrue);
+    });
+
+    test('a project paid for already moves nothing', () {
+      final d = three();
+      final phone = project('gadget', 3000, 6)
+        ..id = 4
+        ..contributions = [const Contribution(amount: 3000, source: 'Set aside at start', date: today)];
+      final im = impactOf(d, d.money, phone, today: today);
+      expect(im.anyMoves, isFalse);
+      expect(im.why, isEmpty);
+    });
+
+    test('editing a project shows the effect on the others', () {
+      final d = three();
+      final pricier = d.projects.firstWhere((p) => p.id == 2).copy()..cost = 200000;
+      final im = impactOf(d, d.money, pricier, today: today);
+      expect(im.others.map((o) => o.p.id), [1, 3]);
+      expect(im.others.firstWhere((o) => o.p.id == 3).later, isTrue); // the home waits longer for the SUV
     });
   });
 

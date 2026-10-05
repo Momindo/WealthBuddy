@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
+import '../domain/impact.dart';
 import '../domain/models.dart';
+import '../domain/whatif.dart';
 import 'result_screen.dart';
 import 'widgets.dart';
 
@@ -44,6 +46,8 @@ class _WizardState extends ConsumerState<WizardScreen> {
   int? whenMonths;
   bool? carriesCard;
   bool? hasSetAside;
+  Impact? impact; // what this does to the other projects, shown as a last step when something moves
+  String? harmless; // the earliest want-by date that keeps the others on time
 
   final name = TextEditingController(), cost = TextEditingController(), rate = TextEditingController(), rent = TextEditingController();
   final income = TextEditingController(), spending = TextEditingController(), savings = TextEditingController();
@@ -170,6 +174,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
     }
     err = null;
     if (i >= flow.length - 1) {
+      if (widget.mode != WizardMode.money && impact == null && _checkImpact()) return;
       _finish();
     } else {
       setState(() => i++);
@@ -185,6 +190,117 @@ class _WizardState extends ConsumerState<WizardScreen> {
         i--;
       });
     }
+  }
+
+  /// Works out what the change does to the other projects. True when something moves, so the impact step shows.
+  bool _checkImpact() {
+    final saved = ref.read(appProvider).data;
+    if (!saved.projects.any((x) => x.id != p.id)) return false;
+    final im = impactOf(saved, m, p, today: today);
+    if (!im.anyMoves) return false;
+    setState(() {
+      impact = im;
+      harmless = harmlessTarget(saved, m, p, today: today);
+    });
+    return true;
+  }
+
+  void _useDate(String target) {
+    final saved = ref.read(appProvider).data;
+    setState(() {
+      p.target = target;
+      whenMonths = monthsUntil(today, target);
+      impact = impactOf(saved, m, p, today: today);
+      harmless = null;
+    });
+  }
+
+  Widget _impactView(BuildContext context) {
+    final im = impact!;
+    final t = Theme.of(context).textTheme;
+    final adding = widget.mode == WizardMode.create;
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(icon: const Icon(Icons.close), tooltip: 'Close', onPressed: () => Navigator.pop(context)),
+        title: Text(p.name),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          children: [
+            Text('YOUR PROJECT · LAST STEP', style: t.labelSmall?.copyWith(letterSpacing: 0.8)),
+            const SizedBox(height: 8),
+            Text('What ${adding ? 'adding' : 'changing'} the ${p.name} does to your other plans', style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
+            for (final o in im.others)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(kindIcon(o.p.type), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(o.p.name, style: t.titleSmall),
+                      Text('${o.before.readyLabel} → ${o.after.readyLabel} · ${readyChange(o.before, o.after)}',
+                          style: t.bodyMedium?.copyWith(color: o.later ? toneColor(context, Tone.warn) : null)),
+                      if (o.nowMisses)
+                        Text('⚠ misses ${o.after.targetLabel}', style: t.bodySmall?.copyWith(color: toneColor(context, Tone.bad))),
+                    ]),
+                  ),
+                  if (o.before.verdict != o.after.verdict) ...[
+                    Tag(verdictLabel(o.before.verdict), tone: Tone.plain),
+                    const Icon(Icons.arrow_right_alt, size: 18),
+                    Tag(verdictLabel(o.after.verdict), tone: verdictTone(o.after.verdict)),
+                  ],
+                ]),
+              ),
+            const Divider(),
+            Row(children: [
+              Icon(kindIcon(p.type), size: 20, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
+              Expanded(child: Text('${p.name} · ${timingLabel(im.mine)}', style: t.titleSmall)),
+            ]),
+            if (im.why.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(im.why, style: t.bodyMedium)),
+            if (!im.anyMoves)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(children: [
+                  Icon(Icons.check_circle_outline, color: toneColor(context, Tone.good)),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Nothing else moves now.', style: t.bodyMedium)),
+                ]),
+              ),
+            if (harmless != null)
+              Card(
+                margin: const EdgeInsets.only(top: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    richBold(context, '**Want the ${p.name} by ${monthLabel(harmless!)} instead?** Then everything else still makes its date.'),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(onPressed: () => _useDate(harmless!), child: Text('Use ${monthLabel(harmless!)}')),
+                    ),
+                  ]),
+                ),
+              ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Row(children: [
+            TextButton(onPressed: () => setState(() => impact = null), child: const Text('Back')),
+            const Spacer(),
+            FilledButton(
+              onPressed: _finish,
+              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10), child: Text(adding ? 'Add it' : 'Save changes')),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 
   void _finish() {
@@ -209,6 +325,7 @@ class _WizardState extends ConsumerState<WizardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (impact != null) return _impactView(context);
     final f = flow;
     if (i >= f.length) i = f.length - 1;
     final q = f[i];

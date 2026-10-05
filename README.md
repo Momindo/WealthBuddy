@@ -86,6 +86,14 @@ Home cards say *Saving now · AED 6,180 a month* or *Waiting · starts Jun 2028*
 
 It also searches for the **smallest change that puts everything on time**: a spending cut or a pay rise, in AED 50 steps. Spending cuts count for more, because they also shrink the cushion needed first (late home example: 2,750 less spending does what 3,050 more pay does). **Try it** sets the slider. Nothing is saved until **Keep these changes**, which lists what will change first.
 
+### What it costs the others (`lib/domain/impact.dart`)
+
+Adding a project, or changing one's cost, date or loan, ends with a last step **only when other projects move**:
+- each other project's ready date before → after, how far it moved, ⚠ when it now misses its want-by date, and verdict changes
+- one sentence on why ("Spare money is AED 8,000 a month. Until Mar 2028 the Wedding needs about 6,150 of it, so the Family SUV has to wait.")
+- the **earliest want-by date that keeps everything else on time** (galloping then binary search, up to 10 years), with **Use [date]**
+- **Add it** / **Save changes** never blocks; it just puts the facts first
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.
