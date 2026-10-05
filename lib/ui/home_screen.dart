@@ -8,7 +8,9 @@ import '../domain/format.dart';
 import '../domain/history.dart';
 import '../domain/models.dart';
 import '../domain/reminders.dart';
+import '../domain/whatif.dart';
 import 'add_money_sheet.dart';
+import 'motion.dart';
 import 'check_in_sheet.dart';
 import 'logo.dart';
 import 'settings_screen.dart';
@@ -50,7 +52,8 @@ class HomeScreen extends ConsumerWidget {
             const KindGrid(),
           ],
           if (hasProjects) ...[
-            PaydayCard(today: today),
+            if (data.money.complete) RiseIn(child: NeedCard(today: today)),
+            AnimatedSize(duration: motion(context, 300), curve: Curves.easeOut, child: PaydayCard(today: today)),
             Row(children: [
               Expanded(child: Text('Your projects', style: t.titleMedium)),
               if (data.money.complete)
@@ -66,10 +69,10 @@ class HomeScreen extends ConsumerWidget {
                   label: const Text('What if…'),
                 ),
             ]),
-            for (final p in data.projects)
+            for (final (i, p) in data.projects.indexed)
               Builder(builder: (context) {
                 final a = all?[p.id];
-                return ProjectCard(
+                return RiseIn(index: i + 1, child: Pressable(child: ProjectCard(
                   status: a == null ? null : cardStatus(p, a, today: today),
                   projectName: p.name,
                   type: p.type,
@@ -79,7 +82,7 @@ class HomeScreen extends ConsumerWidget {
                   wanted: monthLabel(p.target),
                   onOpen: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ResultScreen(projectId: p.id))),
                   onAdd: () => showAddMoney(context, p.id),
-                );
+                )));
               }),
             OutlinedButton.icon(
               onPressed: () => showKindPicker(context),
@@ -194,13 +197,81 @@ Future<void> showKindPicker(BuildContext context) {
   );
 }
 
-/// "This payday": the one thing to do with this month's money, across all projects, plus the check-in when due.
-class PaydayCard extends ConsumerWidget {
-  const PaydayCard({super.key, required this.today});
+/// Recomputed only when the data changes: the search runs the whole plan a dozen times.
+final neededProvider = Provider<double?>((ref) => neededMonthly(ref.watch(appProvider).data, today: todayIso()));
+
+/// The big number: what to put aside each month so every project makes its date, against what's spare.
+class NeedCard extends ConsumerWidget {
+  const NeedCard({super.key, required this.today});
   final String today;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(appProvider).data;
+    final need = ref.watch(neededProvider);
+    final t = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    final m = data.money;
+    final spare = (m.income ?? 0) - (m.spending ?? 0) - (m.repayments ?? 0);
+    final n = data.projects.length;
+    final goals = n == 1 ? 'your goal' : 'all $n goals';
+    final gap = need == null ? null : spare - need;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(need == null ? 'Your goals' : 'To reach $goals on time, save', style: t.titleSmall),
+          const SizedBox(height: 4),
+          if (need != null) ...[
+            CountingMoney(need, style: t.displaySmall?.copyWith(fontWeight: FontWeight.w800, color: cs.primary)),
+            Text('a month', style: t.bodyMedium),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: gap! < 0 ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatIfScreen())) : null,
+              child: Row(children: [
+                Expanded(child: Text('You have ${money(spare)} spare', style: t.bodyMedium)),
+                Icon(gap >= 0 ? Icons.check_circle_outline : Icons.warning_amber_rounded, size: 18, color: toneColor(context, gap >= 0 ? Tone.good : Tone.warn)),
+                const SizedBox(width: 4),
+                Text(gap >= 0 ? '${fmt(gap)} to spare' : '${fmt(-gap)} short',
+                    style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: toneColor(context, gap >= 0 ? Tone.good : Tone.warn))),
+                if (gap < 0) const Icon(Icons.chevron_right, size: 18),
+              ]),
+            ),
+          ] else
+            Text('Not reachable on time at any saving level. Open a plan to see why, or try What if…', style: t.bodyMedium),
+          if (!m.cushion)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(children: [
+                Icon(Icons.warning_amber_rounded, size: 18, color: toneColor(context, Tone.warn)),
+                const SizedBox(width: 6),
+                Expanded(child: Text('Planning without a safety cushion', style: t.bodySmall?.copyWith(color: toneColor(context, Tone.warn)))),
+                TextButton(
+                  onPressed: () => ref.read(appProvider.notifier).update((d) => d.money.cushion = true, why: 'Safety cushion turned on'),
+                  child: const Text('Turn back on'),
+                ),
+              ]),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// "This payday": the one thing to do with this month's money, across all projects, plus the check-in when due.
+class PaydayCard extends ConsumerStatefulWidget {
+  const PaydayCard({super.key, required this.today});
+  final String today;
+  @override
+  ConsumerState<PaydayCard> createState() => _PaydayCardState();
+}
+
+class _PaydayCardState extends ConsumerState<PaydayCard> {
+  bool done = false; // Done was tapped: draw the tick, then fold the card away
+
+  @override
+  Widget build(BuildContext context) {
+    final today = widget.today;
     final data = ref.watch(appProvider).data;
     final t = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
@@ -227,14 +298,26 @@ class PaydayCard extends ConsumerWidget {
           if (r != null && !r.title.startsWith('Payday')) Padding(padding: const EdgeInsets.only(top: 6), child: Text(r.title, style: t.titleMedium?.copyWith(color: cs.onPrimaryContainer, fontWeight: FontWeight.w700))),
           const SizedBox(height: 6),
           Text(body, style: t.bodyMedium?.copyWith(color: cs.onPrimaryContainer)),
-          Wrap(alignment: WrapAlignment.end, spacing: 4, children: [
-            if (due) TextButton(onPressed: () => showCheckIn(context), child: const Text('Check in')),
-            if (isToday)
-              FilledButton.tonal(
-                onPressed: () => ref.read(appProvider.notifier).update((d) => d.settings.paydayDone = r.date),
-                child: const Text('Done ✓'),
-              ),
-          ]),
+          if (done)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: motion(context, 600),
+                  curve: Curves.elasticOut,
+                  onEnd: () => ref.read(appProvider.notifier).update((d) => d.settings.paydayDone = r?.date),
+                  builder: (_, v, __) => Transform.scale(scale: v, child: Icon(Icons.check_circle, color: toneColor(context, Tone.good), size: 28)),
+                ),
+                const SizedBox(width: 8),
+                Text('Done for this payday', style: t.titleSmall?.copyWith(color: cs.onPrimaryContainer)),
+              ]),
+            )
+          else
+            Wrap(alignment: WrapAlignment.end, spacing: 4, children: [
+              if (due) TextButton(onPressed: () => showCheckIn(context), child: const Text('Check in')),
+              if (isToday) FilledButton.tonal(onPressed: () => setState(() => done = true), child: const Text('Done ✓')),
+            ]),
         ]),
       ),
     );
@@ -268,19 +351,15 @@ class ProjectCard extends StatelessWidget {
               Icon(kindIcon(type)),
               const SizedBox(width: 10),
               Expanded(child: Text(projectName, style: t.titleSmall)),
-              if (a != null) Tag(verdictLabel(a.verdict), tone: verdictTone(a.verdict)),
+              if (a != null) FadeSwitch(child: Tag(verdictLabel(a.verdict), key: ValueKey(a.verdict), tone: verdictTone(a.verdict))),
             ]),
             const SizedBox(height: 10),
             Semantics(
               label: '${money(saved)} of ${money(goal)} set aside',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: goal > 0 ? (saved / goal).clamp(0, 1).toDouble() : 0,
-                  minHeight: 8,
-                  color: toneColor(context, Tone.good),
-                  backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-                ),
+              child: FillingBar(
+                value: goal > 0 ? (saved / goal).clamp(0, 1).toDouble() : 0,
+                color: toneColor(context, Tone.good),
+                background: Theme.of(context).colorScheme.outlineVariant,
               ),
             ),
             const SizedBox(height: 6),

@@ -12,6 +12,7 @@ import '../domain/impact.dart';
 import '../domain/models.dart';
 import '../domain/whatif.dart';
 import 'add_money_sheet.dart';
+import 'motion.dart';
 import 'whatif_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
@@ -101,9 +102,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Tag(verdictLabel(a.verdict), tone: tone),
+                    FadeSwitch(child: Tag(verdictLabel(a.verdict), key: ValueKey(a.verdict), tone: tone)),
                     const SizedBox(height: 6),
-                    Text(a.headline, style: t.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    FadeSwitch(child: Text(a.headline, key: ValueKey(a.headline), style: t.titleLarge?.copyWith(fontWeight: FontWeight.w700))),
                     if (whyNotYet(a, today: todayIso()) != null)
                       Padding(padding: const EdgeInsets.only(top: 4), child: Text(whyNotYet(a, today: todayIso())!, style: t.titleSmall?.copyWith(color: c))),
                   ]),
@@ -111,6 +112,15 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               ]),
               const SizedBox(height: 6),
               Text(a.summary, style: t.bodyMedium),
+              if (!data.money.cushion)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(Icons.warning_amber_rounded, size: 18, color: toneColor(context, Tone.warn)),
+                    const SizedBox(width: 8),
+                    Expanded(child: richBold(context, '**No safety cushion.** One surprise bill or a month without pay could undo this plan.')),
+                  ]),
+                ),
               if (a.wait != null) _WaitBox(wait: a.wait!),
               // The regret check: every line when it's tight, otherwise just the one that doesn't pass.
               for (final ch in a.checks.where((c) => a.verdict == 'tight' || !c.ok))
@@ -136,6 +146,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             onSelectionChanged: (v) => setState(() => tab = v.first),
           ),
 
+          FadeSwitch(
+              child: KeyedSubtree(
+                  key: ValueKey(tab),
+                  child: gapColumn([
           if (tab == 0) ...[
           // The plan, in order
           Section(title: 'Your plan', children: [
@@ -162,14 +176,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           Section(title: 'Money set aside', children: [
             Row2('For this project', '${money(a.earmarked)} of ${money(a.upfront)}', bold: true),
             const SizedBox(height: 4),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: a.upfront > 0 ? (a.earmarked / a.upfront).clamp(0, 1).toDouble() : 0,
-                minHeight: 8,
-                color: toneColor(context, Tone.good),
-                backgroundColor: Theme.of(context).colorScheme.outlineVariant,
-              ),
+            FillingBar(
+              value: a.upfront > 0 ? (a.earmarked / a.upfront).clamp(0, 1).toDouble() : 0,
+              color: toneColor(context, Tone.good),
+              background: Theme.of(context).colorScheme.outlineVariant,
             ),
             const SizedBox(height: 8),
             if (a.earmarked - p.saved > 0.5)
@@ -231,6 +241,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             ]),
             if (p.history.length < 2 && a.watchouts.isEmpty) note(context, 'Nothing more for now. Changes to your ready date will show here.'),
           ],
+          ]))),
 
           note(context,
               'Guidance from fixed rules for planning, not financial advice. Lending rules and costs are estimates; check them with your bank before you commit.'),
@@ -248,17 +259,22 @@ class _ProgressRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
         label: '${(value * 100).floor()}% saved',
-        child: SizedBox(
-          width: 64,
-          height: 64,
-          child: Stack(alignment: Alignment.center, children: [
-            SizedBox(
-              width: 64,
-              height: 64,
-              child: CircularProgressIndicator(value: value, strokeWidth: 7, color: color, backgroundColor: Theme.of(context).colorScheme.outlineVariant),
-            ),
-            Text('${(value * 100).floor()}%', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          ]),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: value),
+          duration: motion(context, 700),
+          curve: Curves.easeOutCubic,
+          builder: (context, v, _) => SizedBox(
+            width: 64,
+            height: 64,
+            child: Stack(alignment: Alignment.center, children: [
+              SizedBox(
+                width: 64,
+                height: 64,
+                child: CircularProgressIndicator(value: v, strokeWidth: 7, color: color, backgroundColor: Theme.of(context).colorScheme.outlineVariant),
+              ),
+              Text('${(v * 100).floor()}%', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            ]),
+          ),
         ),
       );
 }

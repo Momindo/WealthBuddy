@@ -16,6 +16,11 @@ ThemeData buildTheme(Brightness b) {
     cardTheme: CardThemeData(
         elevation: 0, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: scheme.outlineVariant))),
     inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
+    // One soft fade-and-rise between screens on Android; iOS keeps its swipe-back slide.
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+    }),
   );
 }
 
@@ -117,6 +122,11 @@ Widget richBold(BuildContext context, String text, {TextStyle? style}) {
     ],
   ));
 }
+
+/// A column of sections with the same gaps as [ScreenBody].
+Widget gapColumn(List<Widget> children) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      for (var i = 0; i < children.length; i++) Padding(padding: EdgeInsets.only(bottom: i == children.length - 1 ? 0 : 14), child: children[i]),
+    ]);
 
 class ScreenBody extends StatelessWidget {
   const ScreenBody({super.key, required this.children});

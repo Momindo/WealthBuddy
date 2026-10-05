@@ -34,9 +34,12 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
     final m = ref.read(appProvider).data.money;
     basePay = pay = payDrag = m.income ?? 0;
     baseSpend = spend = spendDrag = m.spending ?? 0;
+    baseCushion = cushion = m.cushion;
   }
 
-  bool get changed => pay != basePay || spend != baseSpend || targets.isNotEmpty;
+  late bool baseCushion, cushion;
+
+  bool get changed => pay != basePay || spend != baseSpend || cushion != baseCushion || targets.isNotEmpty;
 
   (double, double, int) _range(double base, double step) {
     final lo = roundDown(base * 0.7, step);
@@ -47,6 +50,7 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
   void _reset() => setState(() {
         pay = payDrag = basePay;
         spend = spendDrag = baseSpend;
+        cushion = baseCushion;
         targets.clear();
       });
 
@@ -55,6 +59,7 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
     final lines = [
       if (pay != basePay) 'Take-home pay ${fmt(basePay)} → ${fmt(pay)}',
       if (spend != baseSpend) 'Monthly spending ${fmt(baseSpend)} → ${fmt(spend)}',
+      if (cushion != baseCushion) cushion ? 'Keep a safety cushion first' : 'Plan without a safety cushion',
       for (final p in data.projects)
         if (targets[p.id] != null && targets[p.id] != p.target) '${p.name} by ${monthLabel(p.target)} → ${monthLabel(targets[p.id]!)}',
     ];
@@ -63,6 +68,7 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
     ref.read(appProvider.notifier).update((d) {
       d.money.income = pay;
       d.money.spending = spend;
+      d.money.cushion = cushion;
       for (final p in d.projects) {
         final t = targets[p.id];
         if (t != null) p.target = t;
@@ -76,13 +82,13 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
     final data = ref.watch(appProvider).data;
     final t = Theme.of(context).textTheme;
     final now = assessAll(data, today: today);
-    final after = whatIf(data, today: today, income: pay, spending: spend, targets: targets);
+    final after = whatIf(data, today: today, income: pay, spending: spend, cushion: cushion, targets: targets);
 
     // The smallest fix depends only on the target dates; work it out once per set of dates.
-    final key = (targets.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map((e) => '${e.key}:${e.value}').join(',');
+    final key = '$cushion|${(targets.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map((e) => '${e.key}:${e.value}').join(',')}';
     if (key != _fixKey) {
       _fixKey = key;
-      _fix = smallestFix(data, today: today, targets: targets);
+      _fix = smallestFix(applyWhatIf(data, cushion: cushion), today: today, targets: targets);
     }
 
     final (payLo, payHi, payDiv) = _range(basePay, payStep);
@@ -122,6 +128,13 @@ class _WhatIfState extends ConsumerState<WhatIfScreen> {
           slider('Take-home pay', payDrag, basePay, payLo, payHi, payDiv, (v) => setState(() => payDrag = v), (v) => setState(() => pay = payDrag = v)),
           slider('Monthly spending', spendDrag, baseSpend, spLo, spHi, spDiv, (v) => setState(() => spendDrag = v),
               (v) => setState(() => spend = spendDrag = v)),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Keep a safety cushion first'),
+            subtitle: Text(cushion ? 'Recommended' : 'Savings go to projects straight away. Riskier.'),
+            value: cushion,
+            onChanged: (v) => setState(() => cushion = v),
+          ),
           Section(title: 'Your projects', children: [
             for (final p in data.projects)
               Builder(builder: (context) {

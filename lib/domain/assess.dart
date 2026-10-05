@@ -125,6 +125,10 @@ double maxPrincipal(double monthly, double annualRate, int months) {
   );
 }
 
+/// Months of essentials to keep as a safety cushion: 3, 6 if others rely on the income, 3 more if it varies.
+/// 0 when the user chose to plan without one.
+int cushionMonths(Money m) => !m.cushion ? 0 : (m.family == true ? 6 : 3) + (m.variable == true ? 3 : 0);
+
 const double cardMonthlyRate = 0.03; // about 36% a year, typical for UAE credit cards
 const double smallPurchaseMonths = 1; // "small" = up to one month of take-home pay
 
@@ -324,7 +328,7 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh, Li
   final savings = money0.savings ?? 0, inv = money0.investments ?? 0;
   final essentials = spend + rep;
   final surplus = income - essentials;
-  final efMonths = (money0.family == true ? 6 : 3) + (money0.variable == true ? 3 : 0);
+  final efMonths = cushionMonths(money0);
   final efTarget = essentials * efMonths;
   final monthsLeft = math.max(1, monthsUntil(today, p.target));
   final now = monthKey(today);
@@ -480,7 +484,9 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh, Li
     final whyEf = 'That\'s $efMonths months of essentials (${money(essentials)} a month), because '
         '${money0.family == true ? 'others rely on your income' : 'only you rely on your income'} and '
         '${money0.variable == true ? 'it varies month to month' : 'your salary is fixed'}. In the UAE, losing your job also puts your visa on a clock.';
-    if (small) {
+    if (efMonths == 0) {
+      // Planning without a safety cushion: nothing to build, and no step for it.
+    } else if (small) {
       if (efHave < efTarget - 0.5) {
         steps.add(PlanStep(
             'Your safety cushion can wait for this one',
@@ -566,12 +572,14 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh, Li
     final cover = newEss > 0 ? (_pathAt(efPath, buyMonth) / newEss * 10).floorToDouble() / 10 : 99.0;
     final coverOk = cover >= efMonths - 0.5;
     final costUp = emi + running - rentSaved;
-    checks.add(Check(
-        'Cushion still covers you',
-        coverOk,
-        coverOk
-            ? 'It covers ${num1(math.min(cover, 99))} months at your new monthly costs.'
-            : 'It would cover ${num1(cover)} months, not $efMonths${costUp > 0.5 ? ', because ${loan ? 'the ${k.loanName} and ' : ''}running costs add ${money(costUp)} a month' : ''}, until you top it up.'));
+    if (efMonths > 0) {
+      checks.add(Check(
+          'Cushion still covers you',
+          coverOk,
+          coverOk
+              ? 'It covers ${num1(math.min(cover, 99))} months at your new monthly costs.'
+              : 'It would cover ${num1(cover)} months, not $efMonths${costUp > 0.5 ? ', because ${loan ? 'the ${k.loanName} and ' : ''}running costs add ${money(costUp)} a month' : ''}, until you top it up.'));
+    }
     final roomOk = afterSurplus >= income * 0.1;
     checks.add(Check('Room to breathe', roomOk,
         'Spare each month ${roomOk ? 'stays at' : 'drops to'} ${money(afterSurplus)} (${(afterSurplus / income * 100).floor()}% of your pay).'));

@@ -251,7 +251,7 @@ List<int> _chooseTurn(_Ctx c, _State s, Set<int> pinned) {
 Plan planAll(Money mo, List<Project> projects, {required String today, Set<int> pinned = const {}}) {
   final income = mo.income ?? 0;
   final base = (mo.spending ?? 0) + (mo.repayments ?? 0);
-  final efMonths = (mo.family == true ? 6 : 3) + (mo.variable == true ? 3 : 0);
+  final efMonths = cushionMonths(mo);
   final c = _Ctx(income, base, efMonths);
 
   // Savings today: pay the card down (keeping a month of essentials), fill the cushion,

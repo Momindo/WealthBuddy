@@ -537,6 +537,33 @@ void main() {
     });
   });
 
+  group('big number and no cushion', () {
+    AppData lateHome({bool cushion = true}) =>
+        AppData(money: salaried()..cushion = cushion, projects: [project('home', 900000, 24, pay: 'loan', rate: 4.5, term: 300, rent: 6000)]);
+
+    test('what to save a month so every goal is on time', () {
+      expect(neededMonthly(lateHome(), today: today), 11050); // 8,000 spare + the 3,050 pay rise that fixes it
+    });
+
+    test('without a cushion, savings go to the project straight away', () {
+      final a = assessAll(lateHome(cushion: false), today: today)[1]!;
+      expect(a.efTarget, 0);
+      expect(a.readyIn, 29); // 5,000 + 8,000 a month toward 234,000, instead of month 34
+      expect(titles(a).any((t) => t.contains('safety cushion')), isFalse);
+      expect(a.checks.any((c) => c.label == 'Cushion still covers you'), isFalse);
+      expect(neededMonthly(lateHome(cushion: false), today: today), 9550);
+    });
+
+    test('nothing to plan, nothing to show', () {
+      expect(neededMonthly(AppData(money: salaried()), today: today), isNull);
+    });
+
+    test('the cushion choice is saved', () {
+      expect(Money.fromJson((salaried()..cushion = false).toJson()).cushion, isFalse);
+      expect(Money.fromJson({}).cushion, isTrue);
+    });
+  });
+
   test('car loans: 0% and 5 years', () {
     expect(instalment(60000, 0, 60), 1000);
     final a = assess(salaried(savings: 100000), project('car', 75000, 12, pay: 'loan', rate: 0, term: 60), today: today);

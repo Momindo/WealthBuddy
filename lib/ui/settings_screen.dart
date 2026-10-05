@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/state.dart';
+import '../domain/whatif.dart';
+import '../domain/format.dart';
+import '../domain/assess.dart';
 import 'check_in_sheet.dart';
 import 'tour_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
-const appVersion = '0.12.0';
+const appVersion = '0.13.0';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -35,6 +38,36 @@ class SettingsScreen extends ConsumerWidget {
               selected: {s.theme},
               onSelectionChanged: (v) => ctl.update((d) => d.settings.theme = v.first),
             ),
+          ),
+
+          header('Planning'),
+          SwitchListTile(
+            title: const Text('Keep a safety cushion first'),
+            subtitle: Text(data.money.cushion
+                ? 'Months of essentials kept aside before saving for projects. Recommended.'
+                : 'Off: savings go to projects straight away. One surprise bill could undo your plans.'),
+            value: data.money.cushion,
+            onChanged: (on) async {
+              if (on) {
+                ctl.update((d) => d.money.cushion = true, why: 'Safety cushion turned on');
+                return;
+              }
+              final today = todayIso();
+              final lines = <String>[];
+              if (data.money.complete && data.projects.isNotEmpty) {
+                final before = assessAll(data, today: today), after = whatIf(data, today: today, cushion: false);
+                for (final p in data.projects) {
+                  final b = before[p.id]!, a = after[p.id]!;
+                  if (b.readyIn != a.readyIn) lines.add('${p.name}: ${b.readyLabel} → ${a.readyLabel}');
+                }
+              }
+              final ok = await confirm(
+                  context,
+                  'Plan without a safety cushion?',
+                  '${lines.isEmpty ? 'No ready dates change.' : lines.join('\n')}\n\nSavings go to your projects straight away. One surprise bill or a month without pay could undo your plans.',
+                  'Turn off');
+              if (ok) ctl.update((d) => d.money.cushion = false, why: 'Safety cushion turned off');
+            },
           ),
 
           header('Reminders'),

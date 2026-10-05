@@ -8,6 +8,7 @@ import '../app/state.dart';
 import '../domain/assess.dart';
 import '../domain/format.dart';
 import '../domain/models.dart';
+import 'motion.dart';
 import 'result_screen.dart';
 import 'widgets.dart';
 
@@ -67,9 +68,14 @@ class TimelineScreen extends ConsumerWidget {
               },
               child: Semantics(
                 label: rows.map((r) => '${r.p.name}: ${r.ready == null ? 'not reachable' : 'ready ${monthLabel(addMonths(monthKey(today), r.ready!))}'}').join('. '),
-                child: CustomPaint(
-                  size: Size(box.maxWidth, top + rows.length * rowH + 8),
-                  painter: _TimelinePainter(rows, today, Theme.of(context), rowH: rowH, top: top),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: motion(context, 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, grow, _) => CustomPaint(
+                    size: Size(box.maxWidth, top + rows.length * rowH + 8),
+                    painter: _TimelinePainter(rows, today, Theme.of(context), rowH: rowH, top: top, grow: grow),
+                  ),
                 ),
               ),
             );
@@ -94,11 +100,12 @@ class TimelineScreen extends ConsumerWidget {
 }
 
 class _TimelinePainter extends CustomPainter {
-  _TimelinePainter(this.rows, this.today, this.theme, {required this.rowH, required this.top});
+  _TimelinePainter(this.rows, this.today, this.theme, {required this.rowH, required this.top, this.grow = 1});
   final List<TimelineRow> rows;
   final String today;
   final ThemeData theme;
   final double rowH, top;
+  final double grow; // 0..1: bars grow left to right as the screen opens
 
   void _text(Canvas c, String s, Offset at, TextStyle? style, {double maxW = 200, bool center = false}) {
     final tp = TextPainter(text: TextSpan(text: s, style: style), textDirection: TextDirection.ltr, maxLines: 1, ellipsis: '…')..layout(maxWidth: maxW);
@@ -114,7 +121,7 @@ class _TimelinePainter extends CustomPainter {
     const labelW = 96.0;
     final end = math.min(360, rows.fold<int>(12, (m, r) => math.max(m, math.max(r.wanted, r.buy ?? r.wanted))) + 3);
     final w = size.width - labelW - 8;
-    double x(int m) => labelW + m.clamp(0, end) / end * w;
+    double x(int m) => labelW + m.clamp(0, end) / end * w * grow;
     final small = theme.textTheme.bodySmall;
 
     // Year ticks
@@ -161,5 +168,5 @@ class _TimelinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _TimelinePainter old) => old.rows != rows || old.theme != theme;
+  bool shouldRepaint(covariant _TimelinePainter old) => old.rows != rows || old.theme != theme || old.grow != grow;
 }

@@ -7,9 +7,10 @@ import 'format.dart';
 import 'models.dart';
 
 /// A copy of [d] with the what-if changes applied. [targets] maps project id to a new yyyy-mm.
-AppData applyWhatIf(AppData d, {double? income, double? spending, Map<int, String> targets = const {}}) {
+AppData applyWhatIf(AppData d, {double? income, double? spending, bool? cushion, Map<int, String> targets = const {}}) {
   final c = d.copy();
   if (income != null) c.money.income = income;
+  if (cushion != null) c.money.cushion = cushion;
   if (spending != null) c.money.spending = spending;
   for (final p in c.projects) {
     final t = targets[p.id];
@@ -18,8 +19,8 @@ AppData applyWhatIf(AppData d, {double? income, double? spending, Map<int, Strin
   return c;
 }
 
-Map<int, Assessment> whatIf(AppData d, {required String today, double? income, double? spending, Map<int, String> targets = const {}}) =>
-    assessAll(applyWhatIf(d, income: income, spending: spending, targets: targets), today: today);
+Map<int, Assessment> whatIf(AppData d, {required String today, double? income, double? spending, bool? cushion, Map<int, String> targets = const {}}) =>
+    assessAll(applyWhatIf(d, income: income, spending: spending, cushion: cushion, targets: targets), today: today);
 
 /// Every project can be reached and is ready by the date it's wanted.
 bool allOnTime(Map<int, Assessment> all) => all.values.every((a) => a.readyIn != null && a.readyIn! <= a.monthsLeft);
@@ -67,3 +68,26 @@ String readyChange(Assessment before, Assessment after) {
 
 /// The earliest month a target can be set to.
 String earliestTarget(String today) => addMonths(monthKey(today), 1);
+
+/// The smallest amount to put aside each month (in AED 10 steps) that gets every project to its date,
+/// counting the card, the safety cushion and the costs each purchase adds. Null when no amount does,
+/// or there's nothing to plan.
+double? neededMonthly(AppData d, {required String today}) {
+  final m = d.money;
+  if (!m.complete || d.projects.isEmpty) return null;
+  final base = (m.spending ?? 0) + (m.repayments ?? 0);
+  bool ok(double spare) => allOnTime(whatIf(d, today: today, income: base + spare));
+  final cap = math.max(10000.0, (m.income ?? 0) * 3);
+  if (!ok(cap)) return null;
+  if (ok(0)) return 0;
+  var lo = 0, hi = (cap / 10).ceil(); // ok(lo * 10) is false, ok(hi * 10) is true
+  while (hi - lo > 1) {
+    final mid = (lo + hi) ~/ 2;
+    if (ok(mid * 10.0)) {
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return hi * 10.0;
+}
