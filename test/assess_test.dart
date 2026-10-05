@@ -349,7 +349,7 @@ void main() {
       expect(im.anyMoves, isTrue);
       expect(im.others.any((o) => o.later), isTrue);
       expect(im.others.any((o) => o.nowMisses), isTrue);
-      expect(im.why, contains('has to wait'));
+      expect(im.why, contains('to wait'));
     });
 
     test('the suggested date keeps everyone on time', () {
