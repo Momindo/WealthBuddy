@@ -129,10 +129,17 @@ A **monthly check-in** keeps that honest. It's due when the answers are a month 
 
 Every plan that isn't ready now gets one sentence naming the blocker, on the verdict card and the home card, in this order: waiting on an unreachable project, nothing spare, loan over the cap, costs after buying too high, more than 30 years away, the credit card first, waiting for other projects, the safety cushion first, otherwise progress ("You're 53% of the way: AED 56,000 to go at AED 8,000 a month").
 
+### Screens (0.11–0.12)
+
+- **Home**: once you have projects, the type grid moves behind **+ New project**. A **This payday** card at the top says the one thing to do with this month's money across all projects (from the payday reminder logic), with **Done ✓** on payday and **Check in** when due. Each project card has a single status line, by priority: stale price → why not yet → how far the date has moved. **Timeline** (icon next to What if…) shows every project on one line of time: waiting or cushion first, saving, bought, and the wanted-by mark.
+- **Plan screen**: a summary (progress ring, verdict, headline, why not yet, cost of waiting, regret check), then three tabs: **Plan** (steps, ways to make it work, What if, Change answers), **Money** (set aside, how spare money is split, the numbers), **More** (history, good to know).
+- **First run**: privacy pop-up, then a 4-card **feature tour** with parallel projects as the showcase (replay from Settings → How it works). Money questions are 3 screens (your pay; your month; debts and situation). "When do you want it?" has quick choices plus a month-and-year picker. Amounts show thousands separators as you type, and 120k / 1.2m work.
+- **Polish**: delete and "plan on its own" happen straight away with **Undo** instead of an "are you sure?"; a one-time celebration with confetti when a project becomes affordable; haptic ticks on what-if sliders; screen-reader labels for progress, the history chart and the timeline.
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.
-- **First launch:** a three-second splash, then a one-time privacy pop-up: everything stays on this phone, encrypted; no cloud and no account; no ads and no tracking; no name, email or phone number. It's available again from Settings → Privacy.
+- **First launch:** a three-second splash, then a one-time privacy pop-up and the feature tour: everything stays on this phone, encrypted; no cloud and no account; no ads and no tracking; no name, email or phone number. It's available again from Settings → Privacy.
 - **Payday reminders:** the money questions include the day salary arrives. At 3 pm on payday a local notification says what to do with this month's spare money, written from the plan by `lib/domain/reminders.dart`:
   - pay down the card
   - fill the safety cushion
