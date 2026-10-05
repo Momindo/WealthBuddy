@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/state.dart';
 import 'check_in_sheet.dart';
+import 'tour_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
-const appVersion = '0.10.0';
+const appVersion = '0.11.0';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -96,6 +97,12 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Update my money'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WizardScreen.money())),
+          ),
+          ListTile(
+            leading: const Icon(Icons.auto_stories_outlined),
+            title: const Text('How it works'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(fullscreenDialog: true, builder: (_) => const TourScreen())),
           ),
           ListTile(
             leading: const Icon(Icons.shield_outlined),

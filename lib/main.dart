@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/state.dart';
 import 'ui/home_screen.dart';
 import 'ui/logo.dart';
+import 'ui/tour_screen.dart';
 import 'ui/widgets.dart';
 
 void main() => runApp(const ProviderScope(child: WealthBuddyApp()));
@@ -38,9 +39,17 @@ class _PrivacyGateState extends ConsumerState<PrivacyGate> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || ref.read(appProvider).data.settings.privacySeen) return;
-      await showPrivacy(context);
-      ref.read(appProvider.notifier).update((d) => d.settings.privacySeen = true);
+      if (!mounted) return;
+      final s = ref.read(appProvider).data.settings;
+      if (!s.privacySeen) {
+        await showPrivacy(context);
+        ref.read(appProvider.notifier).update((d) => d.settings.privacySeen = true);
+      }
+      // The feature tour follows the privacy promise, once.
+      if (mounted && !ref.read(appProvider).data.settings.tourSeen) {
+        await Navigator.push(context, MaterialPageRoute(fullscreenDialog: true, builder: (_) => const TourScreen()));
+        ref.read(appProvider.notifier).update((d) => d.settings.tourSeen = true);
+      }
     });
   }
 

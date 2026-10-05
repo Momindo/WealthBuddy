@@ -128,17 +128,23 @@ class Settings {
   bool privacySeen; // the first-launch privacy pop-up has been shown
   bool reminders; // payday reminder at 3 pm
   bool appLock; // ask for fingerprint, face or device PIN when the app opens
+  bool tourSeen; // the feature tour after the privacy pop-up has been shown
+  String? paydayDone; // yyyy-mm-dd of the payday whose card was marked done
 
-  Settings({this.theme = 'system', this.privacySeen = false, this.reminders = true, this.appLock = false});
+  Settings({this.theme = 'system', this.privacySeen = false, this.reminders = true, this.appLock = false, this.tourSeen = false, this.paydayDone});
 
   factory Settings.fromJson(Map<String, dynamic> j) => Settings(
         theme: (j['theme'] as String?) ?? 'system',
         privacySeen: (j['privacySeen'] as bool?) ?? false,
         reminders: (j['reminders'] as bool?) ?? true,
         appLock: (j['appLock'] as bool?) ?? false,
+        // People who already saw the privacy pop-up before the tour existed don't get it on update.
+        tourSeen: (j['tourSeen'] as bool?) ?? ((j['privacySeen'] as bool?) ?? false),
+        paydayDone: j['paydayDone'] as String?,
       );
 
-  Map<String, dynamic> toJson() => {'theme': theme, 'privacySeen': privacySeen, 'reminders': reminders, 'appLock': appLock};
+  Map<String, dynamic> toJson() =>
+      {'theme': theme, 'privacySeen': privacySeen, 'reminders': reminders, 'appLock': appLock, 'tourSeen': tourSeen, 'paydayDone': paydayDone};
 }
 
 class AppData {

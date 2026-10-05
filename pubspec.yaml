@@ -1,7 +1,7 @@
 name: wealth_buddy
 description: Plan a big purchase. Answer a few questions and get a plan that says whether you can afford it, by when, and what to do first.
 publish_to: none
-version: 0.10.0+10
+version: 0.11.0+11
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
