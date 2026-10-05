@@ -146,9 +146,10 @@ void main() {
     await tester.pumpWidget(ProviderScope(overrides: [storeProvider.overrideWithValue(store), reminderProvider.overrideWithValue(null), lockProvider.overrideWithValue(null)], child: const WealthBuddyApp()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Timeline'));
+    expect(find.text('See details'), findsOneWidget); // the timeline is on home by default
+    await tester.tap(find.text('See details'));
     await tester.pumpAndSettle();
-    expect(find.text('Timeline'), findsOneWidget);
+    expect(find.textContaining('Every project on one line of time'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 

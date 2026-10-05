@@ -54,14 +54,9 @@ class HomeScreen extends ConsumerWidget {
           if (hasProjects) ...[
             if (data.money.complete) RiseIn(child: NeedCard(today: today)),
             AnimatedSize(duration: motion(context, 300), curve: Curves.easeOut, child: PaydayCard(today: today)),
+            if (data.money.complete) const RiseIn(index: 1, child: HomeTimeline()),
             Row(children: [
               Expanded(child: Text('Your projects', style: t.titleMedium)),
-              if (data.money.complete)
-                IconButton(
-                  tooltip: 'Timeline',
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TimelineScreen())),
-                  icon: const Icon(Icons.view_timeline_outlined),
-                ),
               if (data.money.complete)
                 TextButton.icon(
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatIfScreen())),
