@@ -1,0 +1,86 @@
+00:00 +0: loading /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart
+00:00 +0: /home/runner/work/WealthBuddy/WealthBuddy/test/assess_test.dart: no safety cushion: build it before saving for a car
+00:00 +1: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +2: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +3: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +4: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +5: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +6: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +7: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +8: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +9: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +10: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +11: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +12: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +13: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +14: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +15: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +16: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +17: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +18: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +19: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +20: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +21: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +22: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +23: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +24: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +25: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +26: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +27: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +28: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +29: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +30: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +31: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +32: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +33: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +34: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +35: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +36: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +37: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +38: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +39: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +40: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +41: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +42: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +43: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +44: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +45: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +46: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +47: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +48: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +49: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +50: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +51: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +52: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +53: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +54: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +55: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +56: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +57: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +58: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +59: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +60: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +61: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +62: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +63: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +64: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +65: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +66: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +67: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +68: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +68: /home/runner/work/WealthBuddy/WealthBuddy/test/assess_test.dart: car payments reduce what later plans get after the car is bought, the vacation gets less each month
+car emi 2683, running 1500; vacation gets 8000/mo before, 0 in month 6 (cushion top-up), 3817/mo after; ready month 16
+00:00 +69: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +69: /home/runner/work/WealthBuddy/WealthBuddy/test/assess_test.dart: car payments reduce what later plans get a later loan is checked with the car loan already counted
+second car: repayments 22.4% of pay (alone it would be 8.9%)
+00:00 +70: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +71: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +72: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +73: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:00 +74: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: pick a car, answer the first question
+00:01 +75: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: add a bonus from the projects list
+00:02 +76: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: what if: try the smallest fix
+00:02 +77: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: home: payday card and a new project from the sheet
+00:03 +78: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: amounts format as you type
+00:03 +79: /home/runner/work/WealthBuddy/WealthBuddy/test/widget_test.dart: plan tabs, timeline, and delete with undo
+00:03 +80: All tests passed!
