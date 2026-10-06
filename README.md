@@ -146,6 +146,18 @@ Every plan that isn't ready now gets one sentence naming the blocker, on the ver
 
 Every project on one horizontal timeline, years across the top and one lane per project: a thin grey line while it waits (or the card and cushion come first), a green bar while it saves, an amber tick for the date you want it, and a ✓ pin on the buy date ("Jul 2028 · on time"). A purple playhead with the year sweeps once from today to the last goal, the bars growing behind it, and sweeps again whenever the plan changes. A compact version sits on home whenever you have projects; tap it (See details) for the full view, where tapping a lane opens that plan. Reduce motion shows the end state.
 
+### Backup and restore (offline)
+
+Settings → **Back up to a file** saves everything (money answers, projects, history, settings) as one encrypted file, `wealthbuddy-backup-YYYY-MM-DD.wbk`, wherever you pick through Android's own file dialog: phone storage, an SD card or a USB drive. Nothing is uploaded; what happens to the file afterwards is up to you.
+- **Encryption** (`lib/domain/backup.dart`): AES-256-GCM with a key from your password (PBKDF2-HMAC-SHA256, 120,000 rounds, fresh salt and nonce each time). The password is never stored. Forget it and the file can't be opened by anyone.
+- **Restore from a file** asks for the file and the password, shows the backup's date and project count, then replaces what's on the phone (app lock stays as set on this phone).
+- Settings shows "Last backup …" or "Never backed up. Your plans live only on this phone."
+- Android only for now: the file dialogs go through a small native bridge in `MainActivity` (written by `tool/patch_platforms.py`), no extra plugin.
+
+### Regulatory wording
+
+The plan screen ends with: "An educational planning tool using fixed rules and the figures you enter. Not financial, investment or credit advice, and not affiliated with or licensed by the Central Bank (CBUAE) or the Capital Market Authority. Loan figures are estimates using the rate you entered; lenders apply their own criteria." The repayment check uses take-home pay and says so; the Central Bank's 50% limit is on gross salary.
+
 ## App basics
 
 - **Logo:** steps rising to a gold coin. `lib/ui/logo.dart` draws it as a vector for the app bar and splash, and `tool/make_brand.py` renders the same geometry to the app icon, Android adaptive icon, notification icon and native splash PNGs in `assets/brand/`.

@@ -133,8 +133,9 @@ class Settings {
   bool tourSeen; // the feature tour after the privacy pop-up has been shown
   String? paydayDone; // yyyy-mm-dd of the payday whose card was marked done
   List<int> celebrated; // projects already celebrated as affordable
+  String? lastBackup; // yyyy-mm-dd of the last backup file saved
 
-  Settings({this.theme = 'system', this.privacySeen = false, this.reminders = true, this.appLock = false, this.tourSeen = false, this.paydayDone, List<int>? celebrated})
+  Settings({this.theme = 'system', this.privacySeen = false, this.reminders = true, this.appLock = false, this.tourSeen = false, this.paydayDone, List<int>? celebrated, this.lastBackup})
       : celebrated = celebrated ?? [];
 
   factory Settings.fromJson(Map<String, dynamic> j) => Settings(
@@ -146,10 +147,11 @@ class Settings {
         tourSeen: (j['tourSeen'] as bool?) ?? ((j['privacySeen'] as bool?) ?? false),
         paydayDone: j['paydayDone'] as String?,
         celebrated: ((j['celebrated'] as List?) ?? []).map((e) => (e as num).toInt()).toList(),
+        lastBackup: j['lastBackup'] as String?,
       );
 
   Map<String, dynamic> toJson() =>
-      {'theme': theme, 'privacySeen': privacySeen, 'reminders': reminders, 'appLock': appLock, 'tourSeen': tourSeen, 'paydayDone': paydayDone, 'celebrated': celebrated};
+      {'theme': theme, 'privacySeen': privacySeen, 'reminders': reminders, 'appLock': appLock, 'tourSeen': tourSeen, 'paydayDone': paydayDone, 'celebrated': celebrated, 'lastBackup': lastBackup};
 }
 
 class AppData {

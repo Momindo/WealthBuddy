@@ -413,7 +413,7 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh, Li
   } else if (dbr != null && dbr > 50) {
     verdict = 'rethink';
     headline = 'Not advisable right now';
-    summary = 'The ${k.loanName} would take your loan repayments to ${dbr.toStringAsFixed(0)}% of your take-home pay. UAE banks cap this at 50%, so it is likely to be refused.';
+    summary = 'The ${k.loanName} would take your loan repayments to ${dbr.toStringAsFixed(0)}% of your take-home pay. The Central Bank caps repayments at 50% of gross salary, so this is likely to be refused unless your gross pay is much higher.';
   } else if (afterSurplus < 0) {
     verdict = 'rethink';
     headline = 'Not advisable right now';
@@ -537,7 +537,7 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh, Li
       steps.add(PlanStep(
           'Take a ${durationLabel(term)} ${k.loanName} for ${money(principal)}',
           '${num1(down)}% down. At ${num1(p.rate)}% a year that\'s about ${money(emi)} a month, taking your loan repayments to '
-              '${dbr!.toStringAsFixed(0)}% of your take-home pay. Banks cap this at 50%; under 35% is comfortable.',
+              '${dbr!.toStringAsFixed(0)}% of your take-home pay. That\'s stricter than the bank\'s check, which allows up to 50% of gross salary; under 35% of take-home is comfortable.',
           when: buyWhen));
     } else {
       steps.add(PlanStep(
@@ -585,7 +585,7 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh, Li
         'Spare each month ${roomOk ? 'stays at' : 'drops to'} ${money(afterSurplus)} (${(afterSurplus / income * 100).floor()}% of your pay).'));
     if (dbr != null) {
       checks.add(Check('Loans comfortable', dbr <= 35,
-          'Loan repayments ${dbr.toStringAsFixed(0)}% of your pay${dbr > 35 ? '. Banks allow 50%, but above 35% leaves little room if costs rise' : ''}.'));
+          'Loan repayments ${dbr.toStringAsFixed(0)}% of your take-home pay${dbr > 35 ? '. Banks allow up to 50% of gross salary, but above 35% leaves little room if costs rise' : ''}.'));
     }
     if (sh != null) {
       checks.add(Check('Other plans hold', othersLate.isEmpty,
@@ -681,7 +681,7 @@ Assessment assess(Money money0, Project p, {required String today, Sched? sh, Li
   // ---------- Good to know ----------
   final watch = <String>[];
   if (checks.isEmpty && dbr != null && dbr > 35 && dbr <= 50) {
-    watch.add('Loan repayments would reach ${dbr.toStringAsFixed(0)}% of your pay. Banks allow up to 50%, but above 35% leaves little room if costs rise.');
+    watch.add('Loan repayments would reach ${dbr.toStringAsFixed(0)}% of your take-home pay. Banks allow up to 50% of gross salary, but above 35% leaves little room if costs rise.');
   }
   if (checks.isEmpty && afterSurplus >= 0 && afterSurplus < income * 0.1 && (emi > 0 || running > 0)) {
     watch.add('After buying you\'d have only ${money(afterSurplus)} spare a month.');
@@ -870,7 +870,7 @@ String? whyNotYet(Assessment a, {required String today}) {
   final sh = a.share;
   if (sh != null && sh.blocked) return 'It\'s waiting on the ${sh.after}, which can\'t be reached yet.';
   if (a.surplus <= 0) return 'Your spending and repayments use all your pay, so nothing is left to save.';
-  if (a.dbr != null && a.dbr! > 50) return 'The loan would take your repayments over the banks\' 50% limit.';
+  if (a.dbr != null && a.dbr! > 50) return 'The loan would take your repayments over half your take-home pay, past what banks usually allow.';
   if (a.afterSurplus < 0) return 'After buying, the monthly costs would be more than you have spare.';
   if (a.readyIn == null) return 'At ${money(a.surplus)} spare a month it\'s more than 30 years away.';
   if ((a.cardReadyIn ?? 0) > 0 && a.cardDebt > 0) return 'Your credit card comes first: clear by ${at(a.cardReadyIn!)}.';

@@ -5,12 +5,14 @@ import '../app/state.dart';
 import '../domain/whatif.dart';
 import '../domain/format.dart';
 import '../domain/assess.dart';
+import '../domain/history.dart';
+import 'backup_ui.dart';
 import 'check_in_sheet.dart';
 import 'tour_screen.dart';
 import 'widgets.dart';
 import 'wizard_screen.dart';
 
-const appVersion = '0.14.0';
+const appVersion = '0.15.0';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -117,6 +119,20 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           header('Your data'),
+          ListTile(
+            leading: const Icon(Icons.save_alt_outlined),
+            title: const Text('Back up to a file'),
+            subtitle: Text(s.lastBackup == null
+                ? 'Never backed up. Your plans live only on this phone.'
+                : 'Last backup ${dayLabel(s.lastBackup!)}. Encrypted with your password; saved where you choose.'),
+            onTap: () => backUpToFile(context, ref),
+          ),
+          ListTile(
+            leading: const Icon(Icons.settings_backup_restore),
+            title: const Text('Restore from a file'),
+            subtitle: const Text('Replaces what\'s on this phone'),
+            onTap: () => restoreFromFile(context, ref),
+          ),
           if (data.projects.isNotEmpty && data.money.complete)
             ListTile(
               leading: const Icon(Icons.fact_check_outlined),

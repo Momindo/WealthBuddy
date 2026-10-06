@@ -1,8 +1,11 @@
 // Scenario tests for the decision engine. Each one is a real situation the plan must get right.
 import 'dart:math' as math;
 
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wealth_buddy/domain/assess.dart';
+import 'package:wealth_buddy/domain/backup.dart';
 import 'package:wealth_buddy/domain/checkin.dart';
 import 'package:wealth_buddy/domain/format.dart';
 import 'package:wealth_buddy/domain/history.dart';
@@ -561,6 +564,46 @@ void main() {
     test('the cushion choice is saved', () {
       expect(Money.fromJson((salaried()..cushion = false).toJson()).cushion, isFalse);
       expect(Money.fromJson({}).cushion, isTrue);
+    });
+  });
+
+  group('backup', () {
+    AppData sample() => AppData(money: salaried()..payday = 25, projects: [
+          project('car', 120000, 24)
+            ..contributions = [const Contribution(amount: 10000, source: 'Bonus', date: today)]
+            ..history = [const HistoryPoint(date: today, ready: '2028-04', why: 'Started')],
+        ])
+      ..settings.lastBackup = '2026-09-01';
+
+    test('round trip: everything comes back', () async {
+      final bytes = await makeBackup(sample(), 'secret pass', today: today, version: '0.15.0', iterations: 1000);
+      expect(String.fromCharCodes(bytes.sublist(0, 4)), 'WBK1');
+      final back = await readBackup(bytes, 'secret pass');
+      expect(back.created, today);
+      expect(back.version, '0.15.0');
+      expect(back.data.toJson(), sample().toJson());
+    });
+
+    test('the plan text is not readable in the file', () async {
+      final bytes = await makeBackup(sample(), 'secret pass', today: today, version: '0.15.0', iterations: 1000);
+      expect(String.fromCharCodes(bytes).contains('Family SUV'), isFalse);
+      expect(String.fromCharCodes(bytes).contains('120000'), isFalse);
+    });
+
+    test('wrong password, damaged file, not a backup, short password', () async {
+      final bytes = await makeBackup(sample(), 'secret pass', today: today, version: '0.15.0', iterations: 1000);
+      await expectLater(readBackup(bytes, 'wrong pass'), throwsA(isA<BackupError>().having((e) => e.message, 'message', startsWith('Wrong password'))));
+      final damaged = Uint8List.fromList(bytes)..[bytes.length - 1] ^= 0xFF;
+      await expectLater(readBackup(damaged, 'secret pass'), throwsA(isA<BackupError>()));
+      await expectLater(readBackup(Uint8List.fromList('hello world, not a backup at all.......................'.codeUnits), 'x'),
+          throwsA(isA<BackupError>().having((e) => e.message, 'message', contains('isn\'t a WealthBuddy backup'))));
+      await expectLater(makeBackup(sample(), '123', today: today, version: '0.15.0'), throwsA(isA<BackupError>()));
+    });
+
+    test('each backup is encrypted differently', () async {
+      final a = await makeBackup(sample(), 'secret pass', today: today, version: '0.15.0', iterations: 1000);
+      final b = await makeBackup(sample(), 'secret pass', today: today, version: '0.15.0', iterations: 1000);
+      expect(a, isNot(equals(b))); // fresh salt and nonce each time
     });
   });
 

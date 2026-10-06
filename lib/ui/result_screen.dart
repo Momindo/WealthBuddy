@@ -244,7 +244,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           ]))),
 
           note(context,
-              'Guidance from fixed rules for planning, not financial advice. Lending rules and costs are estimates; check them with your bank before you commit.'),
+              'An educational planning tool using fixed rules and the figures you enter. Not financial, investment or credit advice, and not affiliated with or licensed by the Central Bank (CBUAE) or the Capital Market Authority. Loan figures are estimates using the rate you entered; lenders apply their own criteria.'),
         ]),
       ),
     );
