@@ -607,6 +607,36 @@ void main() {
     });
   });
 
+  group('car payments reduce what later plans get', () {
+    // 8,000 spare, cushion already full, 24,000 extra in savings.
+    // Car: 150,000 on a 4-year loan, wanted in March (month 5). Vacation: 60,000, wanted in month 12.
+    Money m() => salaried(savings: 60000);
+    Project car({String pay = 'loan'}) => project('car', 150000, 5, pay: pay)..id = 1;
+    Project trip() => project('vacation', 60000, 12)..id = 2;
+
+    test('after the car is bought, the vacation gets less each month', () {
+      final all = assessAll(AppData(money: m(), projects: [car(), trip()]), today: today);
+      final c = all[1]!, v = all[2]!.share!;
+      expect(c.buyIn, 5); // bought on its date
+      final before = v.allocAt(3), afterTopUp = v.allocAt(10);
+      // ignore: avoid_print
+      print('car emi ${c.emi.round()}, running ${c.running.round()}; vacation gets ${before.round()}/mo before, '
+          '${v.allocAt(6).round()} in month 6 (cushion top-up), ${afterTopUp.round()}/mo after; ready month ${all[2]!.readyIn}');
+      expect(before, closeTo(8000, 1)); // everything spare while the car is saved
+      expect(v.allocAt(6), lessThan(before)); // the cushion grows with the new costs and is topped up first
+      expect(afterTopUp, closeTo(8000 - c.emi - c.running, 1)); // spare minus loan and running costs
+      expect(all[2]!.readyIn, greaterThan(12)); // so the vacation is late
+    });
+
+    test('the same car paid in cash leaves more for the vacation', () {
+      final loan = assessAll(AppData(money: m(), projects: [car(), trip()]), today: today)[2]!;
+      final cash = assessAll(AppData(money: salaried(savings: 200000), projects: [car(pay: 'savings'), trip()]), today: today)[2]!;
+      // ignore: avoid_print
+      print('vacation ready: month ${loan.readyIn} with the car loan, month ${cash.readyIn} with the car in cash (and more savings)');
+      expect(cash.share!.allocAt(10), greaterThan(loan.share!.allocAt(10)));
+    });
+  });
+
   test('car loans: 0% and 5 years', () {
     expect(instalment(60000, 0, 60), 1000);
     final a = assess(salaried(savings: 100000), project('car', 75000, 12, pay: 'loan', rate: 0, term: 60), today: today);
