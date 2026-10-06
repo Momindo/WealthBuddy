@@ -628,12 +628,13 @@ void main() {
       expect(all[2]!.readyIn, greaterThan(12)); // so the vacation is late
     });
 
-    test('the same car paid in cash leaves more for the vacation', () {
-      final loan = assessAll(AppData(money: m(), projects: [car(), trip()]), today: today)[2]!;
-      final cash = assessAll(AppData(money: salaried(savings: 200000), projects: [car(pay: 'savings'), trip()]), today: today)[2]!;
+    test('a later loan is checked with the car loan already counted', () {
+      final second = project('car', 100000, 24, pay: 'loan')..id = 3;
+      final all = assessAll(AppData(money: m(), projects: [car(), second]), today: today);
+      final c1 = all[1]!, c2 = all[3]!;
       // ignore: avoid_print
-      print('vacation ready: month ${loan.readyIn} with the car loan, month ${cash.readyIn} with the car in cash (and more savings)');
-      expect(cash.share!.allocAt(10), greaterThan(loan.share!.allocAt(10)));
+      print('second car: repayments ${c2.dbr!.toStringAsFixed(1)}% of pay (alone it would be ${(c2.emi / 20000 * 100).toStringAsFixed(1)}%)');
+      expect(c2.dbr, closeTo((c1.emi + c2.emi) / 20000 * 100, 0.5));
     });
   });
 
