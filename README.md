@@ -146,6 +146,8 @@ Every plan that isn't ready now gets one sentence naming the blocker, on the ver
 
 Every project on one horizontal timeline, years across the top and one lane per project: a thin grey line while it waits (or the card and cushion come first), a green bar while it saves, an amber tick for the date you want it, and a ✓ pin on the buy date ("Jul 2028 · on time"). A purple playhead with the year sweeps once from today to the last goal, the bars growing behind it, and sweeps again whenever the plan changes. A compact version sits on home whenever you have projects; tap it (See details) for the full view, where tapping a lane opens that plan. Reduce motion shows the end state.
 
+**Loan payments (0.16):** a purchase made with a loan keeps going after the ✓: small amber dots, one per payment period (every 3 months for loans up to 5 years, 6 up to 10, 12 beyond), pop in behind the playhead until the last payment, with "48 × AED 2,683 · until Mar 2031" in the full view. Cash purchases end at the ✓. The axis stretches to show loans up to 6 years out; a longer mortgage runs off the edge and its label gives the end date.
+
 ### Backup and restore (offline)
 
 Settings → **Back up to a file** saves everything (money answers, projects, history, settings) as one encrypted file, `wealthbuddy-backup-YYYY-MM-DD.wbk`, wherever you pick through Android's own file dialog: phone storage, an SD card or a USB drive. Nothing is uploaded; what happens to the file afterwards is up to you.

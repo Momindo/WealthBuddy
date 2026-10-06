@@ -19,7 +19,9 @@ class TimelineRow {
   final int saveFrom; // money starts going to it (after card, cushion or waiting)
   final int? ready, buy;
   final int wanted;
-  const TimelineRow(this.p, {this.waitUntil, required this.saveFrom, this.ready, this.buy, required this.wanted});
+  final int? loanEnd; // month of the last loan payment, when it's bought with a loan (null when paid in cash)
+  final double emi; // monthly loan payment
+  const TimelineRow(this.p, {this.waitUntil, required this.saveFrom, this.ready, this.buy, required this.wanted, this.loanEnd, this.emi = 0});
 }
 
 List<TimelineRow> timelineRows(AppData d, {required String today}) {
@@ -36,6 +38,8 @@ List<TimelineRow> timelineRows(AppData d, {required String today}) {
           ready: a.readyIn,
           buy: a.buyIn ?? a.readyIn,
           wanted: a.monthsLeft,
+          loanEnd: a.loan && a.readyIn != null && (a.buyIn ?? a.readyIn) != null ? (a.buyIn ?? a.readyIn)! + a.term : null,
+          emi: a.emi,
         );
       }(),
   ];
@@ -116,6 +120,7 @@ class TimelineLegend extends StatelessWidget {
       item(box(cs.outline.withValues(alpha: 0.5), 18, 4), 'Waiting or cushion first'),
       item(box(_saveColor(context), 18, 10), 'Saving'),
       item(CircleAvatar(radius: 6, backgroundColor: toneColor(context, Tone.good)), 'Bought'),
+      item(CircleAvatar(radius: 4, backgroundColor: toneColor(context, Tone.warn)), 'Loan payments'),
       item(box(toneColor(context, Tone.warn), 3, 14), 'Want by'),
     ]);
   }
@@ -138,7 +143,7 @@ class TimelineLanes extends StatefulWidget {
 class _TimelineLanesState extends State<TimelineLanes> with SingleTickerProviderStateMixin {
   late final AnimationController c = AnimationController(vsync: this);
 
-  String _sig(List<TimelineRow> rows) => rows.map((r) => '${r.p.id}:${r.saveFrom}:${r.ready}:${r.buy}:${r.wanted}').join('|');
+  String _sig(List<TimelineRow> rows) => rows.map((r) => '${r.p.id}:${r.saveFrom}:${r.ready}:${r.buy}:${r.wanted}:${r.loanEnd}').join('|');
 
   void _play() {
     final reduce = reduceMotion(context);
@@ -186,7 +191,8 @@ class _TimelineLanesState extends State<TimelineLanes> with SingleTickerProvider
                 if (i >= 0 && i < rows.length) widget.onTapRow!(rows[i]);
               },
         child: Semantics(
-          label: 'Timeline. ${rows.map((r) => '${r.p.name}: ${r.ready == null ? 'not reachable yet' : 'ready ${monthLabel(addMonths(monthKey(widget.today), r.ready!))}'}').join('. ')}',
+          label: 'Timeline. ${rows.map((r) => '${r.p.name}: ${r.ready == null ? 'not reachable yet' : 'ready ${monthLabel(addMonths(monthKey(widget.today), r.ready!))}'}'
+              '${r.loanEnd == null ? '' : ', loan payments of ${money(r.emi)} a month until ${monthLabel(addMonths(monthKey(widget.today), r.loanEnd!))}'}').join('. ')}',
           child: AnimatedBuilder(
             animation: c,
             builder: (context, _) => CustomPaint(
@@ -224,7 +230,10 @@ class _LanesPainter extends CustomPainter {
     final warn = dark ? const Color(0xFFE0A24F) : const Color(0xFFB06A12);
     final play = dark ? const Color(0xFFAFA9EC) : const Color(0xFF534AB7);
     final labelW = compact ? 70.0 : 86.0;
-    final end = math.min(360, rows.fold<int>(12, (m, r) => math.max(m, math.max(r.wanted, r.buy ?? r.wanted))) + 2);
+    final goals = rows.fold<int>(12, (m, r) => math.max(m, math.max(r.wanted, r.buy ?? r.wanted)));
+    // Loans stretch the axis so their payments show, up to 6 years out; longer ones run off the edge.
+    final loans = rows.fold<int>(0, (m, r) => math.max(m, r.loanEnd ?? 0));
+    final end = math.min(360, math.max(goals, math.min(loans, 72)) + 2);
     final w = size.width - labelW - 8;
     double x(num m) => labelW + m.clamp(0, end) / end * w;
     final bottom = top + rows.length * laneH;
@@ -263,6 +272,24 @@ class _LanesPainter extends CustomPainter {
         final h = compact ? 5.0 : 7.0;
         canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTRB(x(r.saveFrom), cy - h, x(saveEnd), cy + h), Radius.circular(h)), Paint()..color = save);
       }
+      // Loan payments: a dot every few months after the purchase, popping in as the playhead passes
+      if (r.loanEnd != null && r.buy != null) {
+        final buy = r.buy!, last = r.loanEnd!;
+        final span = last - buy;
+        final every = span <= 60 ? 3 : (span <= 120 ? 6 : 12);
+        final dot = Paint()..color = warn;
+        for (var mo = buy + every; mo <= last && mo <= end; mo += every) {
+          if (now < mo) break;
+          final pop = ((now - mo) / (end * 0.03) + 0.3).clamp(0.0, 1.0);
+          canvas.drawCircle(Offset(x(mo), cy), (compact ? 2.4 : 3.6) * Curves.easeOutBack.transform(pop), dot);
+        }
+        if (!compact && now >= buy) {
+          _text(canvas, '$span × ${money(r.emi)} · until ${monthLabel(addMonths(ym, last))}',
+              Offset(math.min(x(buy) + 14, size.width - 170), cy - 24), small?.copyWith(color: warn), maxW: 170);
+        }
+        if (last > end && now >= end * 0.98) _text(canvas, '→', Offset(size.width - 10, cy - 8), small?.copyWith(color: warn));
+      }
+
       // Want by
       final th = compact ? 9.0 : 14.0;
       canvas.drawRect(Rect.fromLTWH(x(r.wanted) - 1.5, cy - th, 3, th * 2), Paint()..color = warn);

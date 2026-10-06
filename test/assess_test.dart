@@ -13,6 +13,7 @@ import 'package:wealth_buddy/domain/impact.dart';
 import 'package:wealth_buddy/domain/models.dart';
 import 'package:wealth_buddy/domain/reminders.dart';
 import 'package:wealth_buddy/domain/whatif.dart';
+import 'package:wealth_buddy/ui/timeline_screen.dart';
 
 const today = '2026-10-01';
 String inMonths(int n) => addMonths(monthKey(today), n);
@@ -635,6 +636,17 @@ void main() {
       // ignore: avoid_print
       print('second car: repayments ${c2.dbr!.toStringAsFixed(1)}% of pay (alone it would be ${(c2.emi / 20000 * 100).toStringAsFixed(1)}%)');
       expect(c2.dbr, closeTo((c1.emi + c2.emi) / 20000 * 100, 0.5));
+    });
+
+    test('the timeline shows loan payments after a loan purchase, and none for cash', () {
+      final loanRows = timelineRows(AppData(money: m(), projects: [car(), trip()]), today: today);
+      final l = loanRows.firstWhere((r) => r.p.id == 1);
+      final c = assessAll(AppData(money: m(), projects: [car(), trip()]), today: today)[1]!;
+      expect(l.loanEnd, l.buy! + c.term);
+      expect(l.emi, closeTo(c.emi, 0.01));
+      expect(loanRows.firstWhere((r) => r.p.id == 2).loanEnd, isNull); // the vacation is paid from savings
+      final cashRows = timelineRows(AppData(money: salaried(savings: 200000), projects: [car(pay: 'savings')]), today: today);
+      expect(cashRows.single.loanEnd, isNull);
     });
   });
 
